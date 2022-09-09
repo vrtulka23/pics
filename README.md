@@ -65,6 +65,20 @@ Notice that node settings are directly after node definition, whereas child node
 As a convention we use 2 white spaces for indentation, but this is not a general requirement.
 A valid indentation requires 1 or more white spaces.
 
+#### Comments
+
+Comments in PICS are denoted by a hash tag character.
+According to their location and indentation they belong either to the previous or next node:
+```
+age int = 11 years   # this is a basic comment
+
+# this comment belongs to the node below
+age int = 22 years
+
+age int = 33 years
+  # this comment is indented and belongs to the node above
+``` 
+
 ### Basic datatypes
 
 ```
