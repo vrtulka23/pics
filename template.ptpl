@@ -1,0 +1,7 @@
+#DEFINE GEOMETRY {{GEOMETRY:d}}
+#DEFINE BOXSIZE {{GEOMETRY.boxsize:.03e}}
+
+{{GEOMETRY.members}}
+Name: {{name:s}}
+Velocity: {{velocity:.03e}}
+{{GEOMETRY.members}}

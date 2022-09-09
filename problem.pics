@@ -1,0 +1,10 @@
+& default.pics
+
+U
+  length 1e-4 cm  # We need different units in this problem
+
+GEOMETRY
+  boxsize = 2e14 um
+  boundary = 1
+
+% definitions.ptpl definitions.H
