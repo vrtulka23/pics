@@ -40,7 +40,6 @@ A general format of a single node looks like this:
   ...
 ```
 Note that node `<setting>`-s follow immediatelly after its definition and are indented.
-As a convention we use 2 white spaces for indentation.
 `<type>` and `<unit>` do need to be defined only first time, when the parameter is defined.
 All other occurences inherit the same `<type>`.
 `<unit>`-s of subsequent occurences can be different.
@@ -61,14 +60,14 @@ parent int = 33 year
 ```
 Notice that node settings are directly after node definition, whereas child nodes are separated by an empty line.
 
+#### Indentation
 
-They can be ordered hierarchically using indentation.
-
-
+As a convention we use 2 white spaces for indentation, but this is not a general requirement.
+A valid indentation requires 1 or more white spaces.
 
 ### Basic datatypes
 
-
+```
 scalar int!     = 3        # integer that must be defined
 scalar int      = none     # integer that can be undefined
 array  int[2]   = 1, 2     # array with exactly 2 values
@@ -76,28 +75,38 @@ array  int[1:3] = 1, 2     # array with 1 to 3 values
 array  int[:3]  = none     # array with up to 3 values
 array  int[1:]  = 1, 2, 3  # array of integers with 1 or more values
 array  int[:]   = none     # array with any number of values
+```
 
+```
 dimensions  int = 3        # integers with options
   # no free line allowed here
   1 # linear
   2 # cylindrical
   3 # spherical
+```
 
+```
 # nodes on the same indent level do not need to be separated by an empty line
 number    float  = 1.3e-3           # float number with undefined units
 constant  float  = 3.4e23 cm        # number in units of centimeters
 energy    float! = 3.4e23 g*cm2/s2  # number in complex units of energy has to be set
 energy    float  = none J           # energy in Joules that can be none
+```
 
+```
 power float[2] = 2.3 erg/s, 3.4 W   # units with different notation
   # no free line allowed here
   1.2 erg/s     # low power in cgs
   3.4 W         # average power in SI Watts
   5.5 J/s       # high power in SI complex units
+```
 
+```
 logical bool    = true         # logical true/false value
 logical bool[3] = false, 1, 0  # logical array with integer notation 
+```
 
+```
 box dict               # dictionary with four components
   # no free line allowed here
   x float = 2.3e2 cm   # size in x direction
@@ -107,7 +116,9 @@ box dict               # dictionary with four components
     0 # rigid
     1 # free
     2 # overflow
+```
 
+```
 variable int = 4 # comment on the variable
 
 # comment preceeding the variable has the same indent
@@ -132,7 +143,9 @@ marriage string = yes  # one word strings do not need quotation marks
     
     salary float!  = 4e3 euro    # must be set
     house bool!    = true        # must be set
+```
 
+```
 marriage.reason = "love"  # shorthand for setting the variables
 
 output table[:4]   # table can have up to four rows
@@ -148,3 +161,4 @@ output table[:4]   # table can have up to four rows
 0 234.4e3  22.3e-3 "large"
 0 334.34e3 2.3e-3  "extreme"
 # table ends with an empty line
+```
