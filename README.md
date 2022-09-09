@@ -70,13 +70,19 @@ A valid indentation requires 1 or more white spaces.
 Comments in PICS are denoted by a hash tag character.
 According to their location and indentation they belong either to the previous or next node:
 ```
+# this is a lonely comment that does not belong to any node
+
 age int = 11 years   # this is a basic comment
 
 # this comment belongs to the node below
 age int = 22 years
 
 age int = 33 years
-  # this comment is indented and belongs to the node above
+  # this comment is indented and
+  # belongs to the node above
+
+age int = 44 years  # this is a basic comment
+                    # that continues on the following line
 ``` 
 
 ### Basic datatypes
