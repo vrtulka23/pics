@@ -75,7 +75,7 @@ There has to be always at least one empty line between parent and child nodes.
 All child nodes have to have same indentation, higher than the parent node.
 Sibling nodes (on the same level of indentation) do not need to be separated by an empty line.
 ```
-grandparent int = 72 years
+family
 
   parent int = 34 years
 
@@ -85,6 +85,7 @@ grandparent int = 72 years
     child_3 int = 100 days
 ```
 Notice that node options are directly after node definition, whereas child nodes are separated by an empty line.
+Nodes can be used  only as place holders (`family`) that do not have any type or value.
 
 <!---
 Above hierarchy is similar to `dictionaries` from Python.
@@ -228,7 +229,7 @@ Child nodes can be modified using standard object notation:
 ```
 A child node mentioned above can be thus modified as:
 ```
-grandparent.parent.child_1 = 1 year
+family.parent.child_1 = 1 year
 ```
 
 ### Simple data types
@@ -380,21 +381,91 @@ sizes float[3][3] = """
 
 ### Runtime directives
 
-Runtime directives are used to improve calarity of PPML files and node dependencies.
+Runtime directives are used to improve calarity of PPML files and to specify node dependencies.
 Each directive starts with a different symbol:
 
-* `@` - add condition to single or multiple nodes
 * `&` - include nodes/blocks from an external file
 * `$` - define/include a node structure
+* `@` - add condition to single or multiple nodes
+
+One can include content of nother PPML file into current using `&<file>` directive.
+The content will be included at the place (and with an indent) where directive is called.
+In the case below, the content of `spherical.ppml` will be included under the parent node `point`.
+```
+# Included file: spherical.ppml
+
+theta float = 23.3
+rho float = 334.3
+radius float = 234
+
+# Current file: points.ppml
+
+point
+
+  &./spherical.ppml     # Content of sperical.ppml will be included here
+```
+
+If the directive is used in the value part of a node definition, the content is imported as a block data.
+```
+# Included table: ./output_times.ppml
+
+output bool
+time float s
+
+1 2.34
+0 34.23
+0 144.34
+1 234.34
+
+# Current file: parameters.ppml
+
+ouput_times table = &./output_times.pplm
+```
+
+In a similar way one can define node or block structure in a variable using `$<name>` directive.
+Later this structure can be imported into already existing node.
+Note that variable definition cannot be indented, but all members of the variables need to have some level of indentation.
+```
+# Define a node structure
+
+$lunch           # definition cannot be indented
+                 # empty line is optionable
+  appetizer string = "antipasti"
+  soup string = "gazpacho"
+  main_course string = "carbonara"
+  dessert string = "tiramisu"
+
+# Use the node structure in another structure
+
+booking
+
+  room int = 1 
+  beds int = 2
+  $lunch         # insertion
+```
+The above example will append child nodes of the `$lunch` to the booking node.
+Below is an example of a block structure.
+```
+$description = """          # definition
+This description is stored into a variable called $description
+and included into another node.
+"""
+
+about_us text = $description   # insertion
+about_uk text = $description   # multiple insertions are also possible
+```
+
+Conditional directive (starting with `@` sign) is applied only for the next node (with the same indent level), or on all immediate child nodes (with higher indents). One can use following standart logical operators: `==`, `>`, `>=`, `<`, `<=`, `!=`. `&&`, `||`.
 
 ```
-@ vote == no          # condition flag on the same indent affects only following node
-reason string! = "I thought we were just friends"  # one has to give a reason
-  # For strings with multiple words one needs to use qotation marks
+marriage string = no
 
-@ vote == yes | vote != no     # condition for multiple nodes
-  # can be followed by an empty line, but the members must be indented
+@ marriage == no          # condition flag on the same indent affects only next node
+reason string = "I thought we were just friends" 
 
-  salary float!  = 4e3 euro    # must be set
-  house bool!    = true        # must be set
+@ marriage == yes || marriage != no     # condition for multiple nodes
+  	      	     	      	 	# empty line is optional
+  reason string = "I love you!"
+  salary float  = 4e3 euro    
+  house bool    = true        
 ```
