@@ -294,19 +294,19 @@ Booleans and strings by design do not support units.
 Long data types are used to describe values that do not fit into a single line.
 Into this cathegory belong following:
 
-* `text`- large block of text
+* `str`- large block of text
 * `table` - tabular data
 * `block arrays` - large multidimensional arrays
 
 It is also possible to assign large texts to parameters using triple quote notation.
-Text starts directly at the following line without indentation.
+String starts directly at the following line without indentation.
 End of the text is marked by final triple qotes on a new line.
 These also do not need to be indented.
 ```
 product string = pen           # definition
 
   price float = 33.90 euro
-  description text = """       # tripple qotes as a value
+  description str = """       # tripple qotes as a value
 Our pens are built from best and eco-friendly materials.
 
 We guarantee that you will be satisfied with quality of our products.
