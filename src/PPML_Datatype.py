@@ -1,13 +1,16 @@
 from typing import List,Tuple
 from pydantic import BaseModel
+import numpy as np
 import re
+import json
 
 class PPML_Datatype(BaseModel):
     indent: int = 0;
     name: str = None;
-    comment: str = None;
-    constrains: Tuple[int,int] = None;
+    comments: str = None;
     defined: bool = False;
+    dimension: List[tuple] = None
+    units: str = None;
     
     def match(self, code: str):
         # Empty line
@@ -21,7 +24,7 @@ class PPML_Datatype(BaseModel):
             code = code.lstrip()
             
         # Parse name
-        m=re.match('([a-zA-Z0-9_-]+)',code)
+        m=re.match('^([a-zA-Z0-9_-]+)', code)
         if m:
             self.name = m.group(1)
             code = code[len(m.group(1)):].lstrip()
@@ -29,8 +32,8 @@ class PPML_Datatype(BaseModel):
             raise Exception("Name has an invalid format: "+code)
 
         # Parse type
-        if self.datatype==code[0:len(self.datatype)]:
-            code = code[len(self.datatype):]
+        if self.dtname==code[0:len(self.dtname)]:
+            code = code[len(self.dtname):]
         else:
             return False    
 
@@ -40,80 +43,95 @@ class PPML_Datatype(BaseModel):
             code = code[1:]
 
         # Parse array settings
-        """
-        m=re.match('(\[([0-9:]+):([0-9:]+)\]|\[([0-9:]+)\]|!)',code)
+        pattern = '^\[([0-9:]+)\]'
+        m=re.match(pattern, code)
+        if m: self.dimension = []
+        while m:
+            if ":" not in m.group(1):
+                self.dimension.append((int(m.group(1)),int(m.group(1))))
+            else:
+                dmin,dmax = m.group(1).split(':')
+                self.dimension.append((
+                    int(dmin) if dmin else None,
+                    int(dmax) if dmax else None
+                ))
+            code = code[len(m.group(1))+2:]
+            m=re.match(pattern, code)
+
+        # Parse equal sign
+        m=re.match('^(\s+=\s+)', code)
         if m:
-            if m.group(1)=="!":
-                self.defined = True
-            elif len(m.groups())==2:
-                self
-            print(m.group(1))
-        """
+            code = code[len(m.group(1)):]
+        elif code.strip()=="":
+            return self
+        else:
+            raise Exception("Definition does not have a correct format")
+
+        # Add replacement marks
+        replace = ["\\'", '\\"', "\n"]
+        for i,symbol in enumerate(replace):
+            code = code.replace(symbol,f"$#@{i:02d}")
         
-        del self.patterns
-        """
-        re_indent = '^(\s*)'
-        re_name = '([^=# ]+)'
-        re_comment = '\s*(#\s*(.*)|)$'
-        for p,pattern in enumerate(self.patterns):
-            pattern = re_indent + re_name + pattern + re_comment
-            match = re.match(pattern,repr(code)[1:-1])
-            if match:
-                print(code)
-                self.indent = len(match.group(1))
-                self.case = p
-                self.name = match.group(2)
-                self.parse(match)
-                comment = match.group(len(match.groups()))
-                self.comment = comment if comment else None
-                del self.patterns
-                return self
-        """
+        # Parse value
+        m=re.match('^("""(.*)"""|"(.*)"|\'(.*)\'|([^# ]+))', code)
+        if m:
+            # Reduce matches
+            results = [x for x in m.groups() if x is not None]
+            # Remove replacement marks
+            replace = ["\'", '\"', "\n"]
+            for i,symbol in enumerate(replace):
+                  results[1] = results[1].replace(f"$#@{i:02d}", symbol)
+            # Save value
+            if self.dimension:
+                self.value = np.array(json.loads(results[1]), dtype=self.dtcast)
+            else:
+                self.value = self.dtcast(results[1])
+            code = code[len(m.group(1)):]
+        if self.value is None:
+            raise Exception("Value has to be set after equal sign")
+
+        # Parse units
+        m=re.match('^(\s*([^# ]+))', code)
+        if m:
+            self.units = m.group(2)
+            code = code[len(m.group(1)):].lstrip()
+
+        # Parse comments
+        m=re.match('^(\s*#\s*(.*))', code)
+        if m:
+            self.comments = m.group(2)
+            code = code[len(m.group(1)):].lstrip()
+
+        # Is something left?
+        if len(code.strip())>0:
+            raise Exception("Definition format is incorrect")
+        
         return self
             
 class PPML_Datatype_Boolean(PPML_Datatype):
     value: bool = None
-    datatype: str = 'bool'
-    patterns: List[str] = [
-        "\s+bool\s+=\s+([^# ]+)",
-    ]
-    def parse(self, match):
-        self.value = bool(match.group(3))
+    dtname: str = 'bool'
+    dtcast = bool
 
 class PPML_Datatype_Integer(PPML_Datatype):
     value: int = None
-    datatype: str = 'int'
-    patterns: List[str] = [
-        "\s+int\s+=\s+([^# ]+)",
-    ]
-    def parse(self, match):
-        self.value = int(match.group(3))
+    dtname: str = 'int'
+    dtcast = int
 
 class PPML_Datatype_Float(PPML_Datatype):
     value: float = None
-    datatype: str = 'float'
-    patterns: List[str] = [
-        "\s+float\s+=\s+([^# ]+)",
-    ]
-    def parse(self, match):
-        self.value = float(match.group(3))
+    dtname: str = 'float'
+    dtcast = float
 
 class PPML_Datatype_String(PPML_Datatype):
     value: str = None
-    datatype: str = 'str'
-    patterns: List[str] = [
-        '\s+str\s+=\s+"""(.*)"""',        
-        '\s+str\s+=\s+"(.*)"',        
-        "\s+str\s+=\s+'(.*)'",        
-        "\s+str\s+=\s+([^#]+)",        
-    ]
-    def parse(self, match):
-        self.value = str(match.group(3))
+    dtname: str = 'str'
+    dtcast = str
 
 class PPML_Datatype_Table(PPML_Datatype):
-    datatype: str = 'table'
-    patterns: List[str] = [
-    ]
+    value: str = None
+    dtname: str = 'table'
+    dtcast = str
 
 PPML_Datatypes = [
     PPML_Datatype_Boolean,
