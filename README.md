@@ -16,9 +16,9 @@ Among many interesting features the most important characteristic are:
 
 ## Implementations
 
-* Fortan
 * Python
 * C/C++
+* Fortan
 
 ## Syntax
 

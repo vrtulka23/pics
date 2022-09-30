@@ -1,0 +1,15 @@
+from typing import List
+from pydantic import BaseModel
+
+from PPML_Datatype import *
+
+class PPML_Node(BaseModel):
+
+    code: str
+    nodes: List = []
+    file: str = None
+    line: int = None
+
+    name: str = None
+    value: PPML_Datatype = None
+    

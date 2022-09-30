@@ -3,7 +3,6 @@ import re
 import os
 
 from PPML_Node import *
-from PPML_Datatype import *
     
 class ParsePPML:
    
@@ -22,7 +21,7 @@ class ParsePPML:
     def parse_lines(self, lines, file_name=None):
         nodes = []
         for l,line in enumerate(lines):
-            nodes.append(PPML_Node(
+            nodes.append(dict(
                 code = line,
                 line = l+1,
             ))
@@ -32,15 +31,15 @@ class ParsePPML:
         nodes_new = []
         while len(nodes)>0:
             node = nodes.pop(0)
-            if '"""' in node.code:
+            if '"""' in node['code']:
                 block = []
                 while len(nodes)>0:
                     subnode = nodes.pop(0)
-                    if '"""' in subnode.code:
-                        node.code += "\n".join(block) + subnode.code
+                    if '"""' in subnode['code']:
+                        node['code'] += "\n".join(block) + subnode['code']
                         break
                     else:
-                        block.append( subnode.code )
+                        block.append( subnode['code'] )
                 if len(nodes)==0:
                     raise Exception("Block structure starting on line %d is not properly terminated."%node['line'])
                 nodes_new.append(node)
@@ -52,6 +51,9 @@ class ParsePPML:
         nodes = self.parse_lines(ppml.split('\n'))
         nodes = self.parse_blocks(nodes)
         for node in nodes:
-            node.parse_code()
-            #print(nodes)
+            for nd in PPML_Nodes:
+                datatype = nd().match(node['code'])
+                if datatype:
+                    print(datatype)
+
         return True
