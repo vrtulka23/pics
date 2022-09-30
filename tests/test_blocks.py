@@ -20,6 +20,7 @@ text str = """
    tripple qotes # ' " \' \"
 block
 """ # with comment
+    # second comment
 someting
 '''
 

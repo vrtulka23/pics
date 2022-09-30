@@ -1,11 +1,13 @@
 import numpy as np
 import re
 import os
+from typing import List
 
 from PPML_Node import *
     
 class ParsePPML:
-   
+    nodes: List = []
+    
     def __init__(self,**kwargs):
         pass
     
@@ -18,42 +20,57 @@ class ParsePPML:
     def open(self, file_name):
         pass
 
-    def parse_lines(self, lines, file_name=None):
-        nodes = []
+    def preprocess_lines(self, lines, source='inline'):
         for l,line in enumerate(lines):
-            nodes.append(dict(
+            self.nodes.append(PPML_Node_Empty(
                 code = line,
                 line = l+1,
+                source = source,
             ))
-        return nodes
 
-    def parse_blocks(self, nodes):
-        nodes_new = []
-        while len(nodes)>0:
-            node = nodes.pop(0)
-            if '"""' in node['code']:
+    def preprocess_blocks(self):
+        nodes = []
+        while len(self.nodes)>0:
+            node = self.nodes.pop(0)
+            if '"""' in node.code:
                 block = []
-                while len(nodes)>0:
-                    subnode = nodes.pop(0)
-                    if '"""' in subnode['code']:
-                        node['code'] += "\n".join(block) + subnode['code']
+                while len(self.nodes)>0:
+                    subnode = self.nodes.pop(0)
+                    if '"""' in subnode.code:
+                        node.code += "\n".join(block) + subnode.code
                         break
                     else:
-                        block.append( subnode['code'] )
-                if len(nodes)==0:
+                        block.append( subnode.code )
+                if len(self.nodes)==0:
                     raise Exception("Block structure starting on line %d is not properly terminated."%node['line'])
-                nodes_new.append(node)
+                nodes.append(node)
             else:
-                nodes_new.append(node)
-        return nodes_new
-        
-    def parse(self, ppml):
-        nodes = self.parse_lines(ppml.split('\n'))
-        nodes = self.parse_blocks(nodes)
-        for node in nodes:
-            for nd in PPML_Nodes:
-                datatype = nd().match(node['code'])
-                if datatype:
-                    print(datatype)
+                nodes.append(node)
+        self.nodes = nodes
 
+    def preprocess_symbols(self):
+        # Add replacement marks
+        replace = ["\\'", '\\"', "\n"]
+        for n,node in enumerate(self.nodes):
+            for i,symbol in enumerate(replace):
+                self.nodes[n].code = self.nodes[n].code.replace(symbol,f"$@{i:02d}")
+
+    def postprocess_symbols(self):
+        # Remove replacement marks
+        replace = ["\'", '\"', "\n"]
+        for i,symbol in enumerate(replace):
+            results[1] = results[1].replace(f"$@{i:02d}", symbol)
+
+    def parse(self, ppml):
+        self.preprocess_lines(ppml.split('\n'))
+        self.preprocess_blocks()
+        self.preprocess_symbols()
+        for n,node in enumerate(self.nodes):
+            for nd in PPML_Nodes:
+                ndtype = nd(**node.dict()).match()
+                if ndtype:
+                    self.nodes[n] = ndtype
+
+        for node in self.nodes:
+            print(node)
         return True
