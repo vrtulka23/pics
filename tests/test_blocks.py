@@ -5,6 +5,9 @@ from ParsePPML import *
 ppml = r'''
 hydro bool = true
 count int = 23 erg/K
+  = 23 
+  = 24 # something
+  = 25 erg/K
 nums1 int![3] = [4234.3,34,2]
 nums2 float[2:2][2] = [[4234,34],[234,34]]
   nums3 int[:2][2] = [[4234,34],[234,34]]
@@ -18,10 +21,18 @@ width float! = 23.4 cm
     woquotes4 str = noqotes  # with comment
 text str = """
    tripple qotes # ' " \' \"
-block
+block of text
 """ # with comment
     # second comment
 someting
+  # comment of else
+
+  # lonely comment
+  # second lonely comment
+
+  # before
+  else int = 1  # on
+    # after
 '''
 
 def test_blocks():

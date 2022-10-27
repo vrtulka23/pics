@@ -30,14 +30,13 @@ In this section we discribe its basics.
 We call lines with individual parameters and their corresponding settings nodes.
 A general format of a single parameter node looks like this:
 ```
-<name> <type><constrain> = <values> <unit> 
-  <option>                                 
-  <option>
-  <option>
+<name> <type><constrain> = <values> <unit> # <comment>
+  = <option> # <comment>
+  = <option> # <comment>
   ...
 ```
 
-Note that node options follow immediatelly after parameter definition and have to be indented.
+Note that node options follow immediatelly after parameter definition, start with an equal sign `=` and have to be indented.
 Types and units have to be defined only first time, when a parameter is defined.
 In later sections we will explain various node formats and conversions in details.
 
@@ -135,10 +134,10 @@ A valid indentation requires 1 or more white spaces.
 
 ```
 tee string = "Darjeeling"
-     "Darjeeling"          # valid indentation for options
-     "Pu-Ehr"              # all options need to have consistent indentation
-     "Earl Grey"
-     *
+     = "Darjeeling"          # valid indentation for options
+     = "Pu-Ehr"              # all options need to have consistent indentation
+     = "Earl Grey"
+     = *
 
    weight float = 23.3 g   # valid indentation for a child node
    fresh  bool  = true     # all child nodes need to have consistent indentation
@@ -248,9 +247,9 @@ Individual optons are listed directly below (without empty line) parameter defin
 It is a good habit to add description of parameters in the comment.
 ```
 geometry int = 0             # definition
-  0  # 1-dimensional grid
-  1  # 2-dimensional grid
-  2  # 3-dimensional grid
+  = 0  # 1-dimensional grid
+  = 1  # 2-dimensional grid
+  = 2  # 3-dimensional grid
 
 geometry = 2                 # valid modification
 geometry = 3                 # invalid modification
@@ -259,10 +258,10 @@ If options are set in definition, no other modifications are allowed besides the
 It is possible to explicitely allow other values by adding a wildcard option to the end using asterix `*` symbol.
 ```
 scale float = 12 cm          # definition
-  12 cm   # small sample
-  25 cm   # large sample
-  35 cm   # extra large sample
-  *       # custom sample
+  = 12 cm   # small sample
+  = 25 cm   # large sample
+  = 35 cm   # extra large sample
+  = *       # custom sample
 
 scale = 25 cm                # valid modification
 scale = 12.3 cm              # also valid modification
