@@ -69,7 +69,7 @@ class ParsePPML:
             else:
                 nodes.append(node)
         self.nodes = nodes
-    
+        
     # Convert symbols to original letters
     def _postprocess_symbols(self, value):
         replace = ["\'", '\"', "\n"]
@@ -86,6 +86,20 @@ class ParsePPML:
                 continue
             self.nodes[n].value = self._postprocess_symbols(self.nodes[n].value)
             self.nodes[n].code = self._postprocess_symbols(self.nodes[n].code)
+
+    # Assign options to preceeding nodes
+    def postprocess_options(self):
+        nodes = [self.nodes.pop(0)]
+        while len(self.nodes)>0:
+            node = self.nodes.pop(0)
+            if node.dtname=='option':
+                if hasattr(nodes[-1],'options'):
+                    nodes[-1].options.append( node )
+                else:
+                    raise Exception(f"Node '{nodes[-1].dtname}' does not support options")
+            else:
+                nodes.append(node)
+        self.nodes = nodes
             
     # Group comment lines
     def postprocess_comments(self):
@@ -125,10 +139,15 @@ class ParsePPML:
                 node = node.process_code()
                 if node:
                     self.nodes[n] = node
+        self.postprocess_options()
         self.postprocess_symbols()
         self.postprocess_comments()
         for node in self.nodes:
             print(node.dtname,'|',node.name,'|',repr(node.value),
-                  '|',repr(node.comments)) #,
-            #      '|',repr(node.code))
+                  '|',repr(node.comments),
+                  '|',repr(node.units), end='')
+            if hasattr(node,'options'):
+                if node.options:
+                    print(' |',[o.value for o in node.options], end='')
+            print()
         return True

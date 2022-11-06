@@ -5,7 +5,8 @@ import re
 import json
 
 class PPML_Node(BaseModel):
-    code: str
+    code: str  # original code
+    ccode: str # processed code
     line: int
     source: str
 
@@ -18,34 +19,72 @@ class PPML_Node(BaseModel):
     dimension: List[tuple] = None
     units: str = None
 
-    def parse_empty(self):
+    def __init__(self, **kwargs):
+        kwargs['ccode'] = kwargs['code']
+        super().__init__(**kwargs)
+    
+    def _ccode_strip(self, text):
+        self.ccode = self.ccode[len(text):].lstrip()
+        
+    def _parse_empty(self):
+        if not self.ccode.strip()=="":
+            return None
         return PPML_Node_Empty(
+            code = '',
             line = self.line,
             source = self.source,
             indent = self.indent,
         )
 
-    def parse_comment(self, m):
+    def _parse_indent(self):
+        m=re.match('^(\s*)',self.ccode)
+        if m:
+            self.indent = len(m.group(1))
+            self._ccode_strip(m.group(1))
+    
+    def _parse_comment(self):
+        m=re.match('^(#\s*(.*))', self.ccode)
+        if not m:
+            return None
         node = PPML_Node_Comment(
             code = self.code,
             line = self.line,
             source = self.source,
             indent = self.indent,
         )
-        node.comments.append( node.dtcast(m.group(1)) )
+        node.comments.append( node.dtcast(m.group(2)) )
+        self._ccode_strip(m.group(1))
         return node
 
-    def parse_option(self, code):
+    def _parse_option(self):
+        m=re.match('^(=\s*([^\s]+)(\s+[^\s#]+|)(\s+#(.+)|)\s*)', self.ccode)
+        if not m:
+            return None
         node = PPML_Node_Option(
             code = self.code,
             line = self.line,
             source = self.source,
             indent = self.indent,
-            value = code,
+            value = m.group(2).strip(),
         )
+        if m.group(3):
+            node.units = m.group(3).strip()
+        if m.group(4):
+            node.comments.append(m.group(4).strip())        
+        self._ccode_strip(m.group(1))
         return node
+
+    def _parse_name(self):
+        m=re.match('^([a-zA-Z0-9_-]*)', self.ccode)
+        if m:
+            self.name = m.group(1)
+            self._ccode_strip(m.group(1))
+        else:
+            raise Exception("Name has an invalid format: "+self.ccode)
     
-    def parse_group(self):
+    def _parse_group(self):
+        if self.ccode.strip()!="":
+            return None
         return PPML_Node_Group(
             code = self.code,
             line = self.line,
@@ -54,7 +93,17 @@ class PPML_Node(BaseModel):
             indent = self.indent,
         )
 
-    def parse_type(self, code):
+    def _parse_base(self):
+        # Parse modification without type
+        m=re.match('^(\s*=\s+([^#\s]+)(\s*#\s*(.+)|))', self.ccode)
+        if m:
+            self.value = m.group(2)
+            if m.group(3):
+                self.comments.append(m.group(4))
+            self._ccode_strip(m.group(1))
+            return self
+    
+    def _parse_type(self):
         node = None
         for nd in PPML_Nodes:
            node_try = nd(
@@ -64,44 +113,44 @@ class PPML_Node(BaseModel):
                name = self.name,
                indent = self.indent,
            )
-           if node_try.dtname==code[0:len(node_try.dtname)]:
+           if node_try.dtname==self.ccode[0:len(node_try.dtname)]:
                node = node_try
                break
         if node is None:
-            return False
+            return node
 
-        code = code[len(node.dtname):]
+        self._ccode_strip(node.dtname)
 
         # Parse if parameter has to be defined
-        if code[:1]=='!':
+        if self.ccode[:1]=='!':
             node.defined = True
-            code = code[1:]
+            self._ccode_strip('!')
 
         # Parse array settings
-        pattern = '^\[([0-9:]+)\]'
-        m=re.match(pattern, code)
+        pattern = '^(\[([0-9:]+)\])'
+        m=re.match(pattern, self.ccode)
         if m: node.dimension = []
         while m:
-            if ":" not in m.group(1):
-                node.dimension.append((int(m.group(1)),int(m.group(1))))
+            if ":" not in m.group(2):
+                node.dimension.append((int(m.group(2)),int(m.group(2))))
             else:
-                dmin,dmax = m.group(1).split(':')
+                dmin,dmax = m.group(2).split(':')
                 node.dimension.append((
                     int(dmin) if dmin else None,
                     int(dmax) if dmax else None
                 ))
-            code = code[len(m.group(1))+2:]
-            m=re.match(pattern, code)
+            self._ccode_strip(m.group(1))
+            m=re.match(pattern, self.ccode)
 
         # Parse equal sign
-        m=re.match('^(\s+=\s+)', code)
+        m=re.match('^(\s*=\s+)', self.ccode)
         if m:
-            code = code[len(m.group(1)):]
+            self._ccode_strip(m.group(1))
         else:
             raise Exception("Definition does not have a correct format")
 
         # Parse value
-        m=re.match('^("""(.*)"""|"(.*)"|\'(.*)\'|([^# ]+))', code)
+        m=re.match('^("""(.*)"""|"(.*)"|\'(.*)\'|([^# ]+))', self.ccode)
         if m:
             # Reduce matches
             results = [x for x in m.groups() if x is not None]
@@ -110,65 +159,44 @@ class PPML_Node(BaseModel):
                 node.value = np.array(json.loads(results[1]), dtype=node.dtcast)
             else:
                 node.value = node.dtcast(results[1])
-            code = code[len(m.group(1)):]
+            self._ccode_strip(m.group(1))
         if node.value is None:
             raise Exception("Value has to be set after equal sign")
 
         # Parse units
-        m=re.match('^(\s*([^# ]+))', code)
+        m=re.match('^(\s*([^# ]+))', self.ccode)
         if m:
             node.units = m.group(2)
-            code = code[len(m.group(1)):].lstrip()
+            self._ccode_strip(m.group(1))
 
         # Parse comments
-        m=re.match('^(\s*#\s*(.*))', code)
+        m=re.match('^(\s*#\s*(.*))', self.ccode)
         if m:
             node.comments.append( m.group(2) )
-            code = code[len(m.group(1)):].lstrip()
-
-        # Is something left?
-        if len(code.strip())>0:
-            raise Exception("Definition format is incorrect")
+            self._ccode_strip(m.group(1))
 
         return node      
     
     def process_code(self):
-        code = self.code
-        
-        # Empty line
-        if code.strip()=="":
-            return self.parse_empty()
+        self.ccode = self.code
 
-        # Parse indent
-        m=re.match('^(\s*)',code)
-        if m:
-            self.indent = len(m.group(1))
-            code = code.lstrip()
-
-        # Parse comment line
-        m=re.match('^#\s*(.*)', code)
-        if m:
-            return self.parse_comment(m)
-
-        # Parse option line
-        m=re.match('^=\s*(.+)', code)
-        if m:
-            return self.parse_option(m.group(1))
-        
-        # Parse name
-        m=re.match('^([a-zA-Z0-9_-]*)', code)
-        if m:
-            self.name = m.group(1)
-            code = code[len(m.group(1)):].lstrip()
-        else:
-            raise Exception("Name has an invalid format: "+code)
-        # Parse group node
-        if code.strip()=="":
-            return self.parse_group()
-        
-        # Parse type
-        return self.parse_type(code)
-            
+        steps = [
+            self._parse_empty,    # parse empty line node
+            self._parse_indent,   # parse line indent
+            self._parse_comment,  # parse comment node
+            self._parse_option,   # parse option node
+            self._parse_name,     # parse node name
+            self._parse_group,    # parse group node
+            self._parse_base,     # parse base node (modification)
+            self._parse_type,     # parse type node
+        ]
+        for step in steps:
+            node = step()
+            if node:
+                if len(self.ccode.strip())>0:
+                    raise Exception(f"Incorrect format: {self.code}")
+                return node
+                    
 class PPML_Node_Empty(PPML_Node):
     dtname: str = 'empty'
     code: str = ''
@@ -192,21 +220,24 @@ class PPML_Node_Boolean(PPML_Node):
     value: bool = None
     dtname: str = 'bool'
     dtcast = bool
-
+    
 class PPML_Node_Integer(PPML_Node):
     value: int = None
     dtname: str = 'int'
     dtcast = int
+    options = []
 
 class PPML_Node_Float(PPML_Node):
     value: float = None
     dtname: str = 'float'
     dtcast = float
+    options = []
 
 class PPML_Node_String(PPML_Node):
     value: str = None
     dtname: str = 'str'
     dtcast = str
+    options = []
 
 class PPML_Node_Table(PPML_Node):
     value: str = None
