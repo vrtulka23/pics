@@ -3,7 +3,7 @@ import re
 import os
 from typing import List
 
-from PPML_Node import *
+from PPML import *
     
 class ParsePPML:
     nodes: List = []
@@ -23,7 +23,7 @@ class ParsePPML:
     # Create nodes from code lines
     def preprocess_lines(self, lines, source='inline'):
         for l,line in enumerate(lines):
-            self.nodes.append(PPML_Node(
+            self.nodes.append(PPML(
                 code = line,
                 line = l+1,
                 source = source,
