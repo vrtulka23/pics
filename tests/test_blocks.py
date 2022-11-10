@@ -4,6 +4,9 @@ from ParsePPML import *
 
 ppml = r'''
 hydro bool = true
+height int = none
+  = 1
+  = 2
 count int = 23 erg/K
   = 23 
   = 24 # something

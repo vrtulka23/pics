@@ -3,7 +3,7 @@ import re
 import os
 from typing import List
 
-from PPML import *
+from PPML_Node import *
     
 class ParsePPML:
     nodes: List = []
@@ -21,16 +21,16 @@ class ParsePPML:
         pass
 
     # Create nodes from code lines
-    def preprocess_lines(self, lines, source='inline'):
+    def pre_lines(self, lines, source='inline'):
         for l,line in enumerate(lines):
-            self.nodes.append(PPML(
+            self.nodes.append(PPML_Node(
                 code = line,
                 line = l+1,
                 source = source,
             ))
 
     # Group block lines
-    def preprocess_blocks(self):
+    def pre_blocks(self):
         nodes = []
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
@@ -51,7 +51,7 @@ class ParsePPML:
         self.nodes = nodes
 
     # Replace specific symbols with substitution marks
-    def preprocess_symbols(self):
+    def pre_symbols(self):
         # Add replacement marks
         # TODO: we need to also properly treate arrays like this ["d#", "b"]
         replace = ["\\'", '\\"', "\n"]
@@ -60,7 +60,7 @@ class ParsePPML:
                 self.nodes[n].code = self.nodes[n].code.replace(symbol,f"$@{i:02d}")
 
     # Preprocess options
-    def preprocess_options(self):
+    def pre_options(self):
         nodes = []
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
@@ -71,38 +71,51 @@ class ParsePPML:
         self.nodes = nodes
         
     # Convert symbols to original letters
-    def _postprocess_symbols(self, value):
+    def _post_symbols(self, value):
         replace = ["\'", '\"', "\n"]
         if isinstance(value, (list, np.ndarray)):
-            value = [self._postprocess_symbols(v) for v in value]
+            value = [self._post_symbols(v) for v in value]
         else:
             for i,symbol in enumerate(replace):
                 value = value.replace(f"$@{i:02d}", symbol)
         return value
-    def postprocess_symbols(self):
+    def post_symbols(self):
         # Remove replacement marks
         for n,node in enumerate(self.nodes):
-            if not isinstance(node,PPML_Node_String):
+            if not isinstance(node,PPML_Type_String):
                 continue
-            self.nodes[n].value = self._postprocess_symbols(self.nodes[n].value)
-            self.nodes[n].code = self._postprocess_symbols(self.nodes[n].code)
+            self.nodes[n].value = self._post_symbols(self.nodes[n].value)
+            self.nodes[n].code = self._post_symbols(self.nodes[n].code)
 
     # Assign options to preceeding nodes
-    def postprocess_options(self):
+    def post_options(self):
         nodes = [self.nodes.pop(0)]
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
             if node.dtname=='option':
                 if hasattr(nodes[-1],'options'):
+                    node.value = nodes[-1].dtcast(node.value)
                     nodes[-1].options.append( node )
                 else:
                     raise Exception(f"Node '{nodes[-1].dtname}' does not support options")
             else:
                 nodes.append(node)
         self.nodes = nodes
-            
+
+    # Check if nodes with options have correct values
+    def post_check_options(self):
+        for node in self.nodes:
+            if node.options:
+                options = [o.value for o in node.options]
+                if node.value is None and node.defined:
+                    raise Exception(f"Value of node '{node.name}' must be defined")
+                if not node.defined:
+                    options.append(None)
+                if node.value not in options:
+                    raise Exception(f"Value '{node.value}' of node '{node.name}' doesn't match with any option:",options)
+        
     # Group comment lines
-    def postprocess_comments(self):
+    def post_comments(self):
         # Group following comments
         nodes = [self.nodes.pop(0)]
         while len(self.nodes)>0:
@@ -128,22 +141,33 @@ class ParsePPML:
         # Flatten comments lists
         for n,node in enumerate(self.nodes):
             self.nodes[n].comments = "\n".join(node.comments)
+
+    # Remove empty nodes
+    def post_remove_empty(self):
+        nodes = []
+        while len(self.nodes)>0:
+            node = self.nodes.pop(0)
+            if node.dtname!='empty':
+                nodes.append(node)
+        self.nodes = nodes
             
     # Parse a code line
     def parse(self, ppml):
-        self.preprocess_lines(ppml.split('\n'))
-        self.preprocess_blocks()
-        self.preprocess_symbols()
-        self.preprocess_options()
+        self.pre_lines(ppml.split('\n'))
+        self.pre_blocks()
+        self.pre_symbols()
+        self.pre_options()
         for n,node in enumerate(self.nodes):
                 node = node.process_code()
                 if node:
                     self.nodes[n] = node
-        self.postprocess_options()
-        self.postprocess_symbols()
-        self.postprocess_comments()
+        self.post_options()
+        self.post_check_options()
+        self.post_symbols()
+        self.post_comments()
+        self.post_remove_empty()
         for node in self.nodes:
-            print(node.dtname,'|',node.name,'|',repr(node.value),
+            print(node.indent,'|',node.dtname,'|',node.name,'|',repr(node.value),
                   '|',repr(node.comments),
                   '|',repr(node.units), end='')
             if hasattr(node,'options'):
