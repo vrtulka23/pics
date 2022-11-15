@@ -2,7 +2,6 @@ from typing import List,Tuple
 from pydantic import BaseModel
 import numpy as np
 import re
-import json
 
 from PPML_Type import *
 
@@ -13,7 +12,7 @@ class PPML_Node(BaseModel):
     ccode: str              # processed code
     line: int
     source: str
-    dtname: str = 'base'
+    keyword: str = 'base'
     indent: int = 0
     name: str = None
     comment: str = None
@@ -39,7 +38,7 @@ class PPML_Node(BaseModel):
             self._strip(m.group(1))
             
     def _get_name(self):
-        m=re.match('^([a-zA-Z0-9_-]+)', self.ccode)
+        m=re.match('^([a-zA-Z0-9_.-]+)', self.ccode)
         if m:
             self.name = m.group(1)
             self._strip(m.group(1))
@@ -82,14 +81,7 @@ class PPML_Node(BaseModel):
         if self.value is None:
             raise Exception("Value has to be set after equal sign")
         if self.node:
-            if self.value in [None,'none','None']:
-                if self.node.defined:
-                    raise Exception(f"Value of node '{self.node.name}' must be defined")
-                self.node.value = None
-            elif self.node.dimension:
-                self.node.value = np.array(json.loads(self.value), dtype=self.node.dtcast)
-            else:
-                self.node.value = self.node.dtcast(self.value)
+            self.node.value = self.value
         
     def _get_units(self):
         m=re.match('^(\s*([^\s#=]+))', self.ccode)
@@ -148,7 +140,7 @@ class PPML_Node(BaseModel):
            node_try = nd(
                parent = self,
            )
-           m=re.match('^(\s+'+node_try.dtname+')', self.ccode)
+           m=re.match('^(\s+'+node_try.keyword+')', self.ccode)
            if m:
                self.node = node_try
                break
@@ -161,7 +153,7 @@ class PPML_Node(BaseModel):
         self._get_units()
         self._get_comment()
     
-    def process_code(self):
+    def parse_code(self):
         self.ccode = self.code
         steps = [
             self._node_empty,    # parse empty line node

@@ -58,23 +58,14 @@ class ParsePPML:
         for n,node in enumerate(self.nodes):
             for i,symbol in enumerate(replace):
                 self.nodes[n].code = self.nodes[n].code.replace(symbol,f"$@{i:02d}")
-
-    # Preprocess options
-    def pre_options(self):
-        nodes = []
-        while len(self.nodes)>0:
-            node = self.nodes.pop(0)
-            if node.code[:1]=='=':
-                nodes[-1].options.append(node.code)
-            else:
-                nodes.append(node)
-        self.nodes = nodes
-        
+                
     # Convert symbols to original letters
     def _post_symbols(self, value):
         replace = ["\'", '\"', "\n"]
         if isinstance(value, (list, np.ndarray)):
             value = [self._post_symbols(v) for v in value]
+        elif value is None:
+            return value
         else:
             for i,symbol in enumerate(replace):
                 value = value.replace(f"$@{i:02d}", symbol)
@@ -82,37 +73,8 @@ class ParsePPML:
     def post_symbols(self):
         # Remove replacement marks
         for n,node in enumerate(self.nodes):
-            if not isinstance(node,PPML_Type_String):
-                continue
-            self.nodes[n].value = self._post_symbols(self.nodes[n].value)
-            self.nodes[n].code = self._post_symbols(self.nodes[n].code)
-
-    # Assign options to preceeding nodes
-    def post_options(self):
-        nodes = [self.nodes.pop(0)]
-        while len(self.nodes)>0:
-            node = self.nodes.pop(0)
-            if node.dtname=='option':
-                if hasattr(nodes[-1],'options'):
-                    node.value = nodes[-1].dtcast(node.value)
-                    nodes[-1].options.append( node )
-                else:
-                    raise Exception(f"Node '{nodes[-1].dtname}' does not support options")
-            else:
-                nodes.append(node)
-        self.nodes = nodes
-
-    # Check if nodes with options have correct values
-    def post_check_options(self):
-        for node in self.nodes:
-            if node.options:
-                options = [o.value for o in node.options]
-                if node.value is None and node.defined:
-                    raise Exception(f"Value of node '{node.name}' must be defined")
-                if not node.defined:
-                    options.append(None)
-                if node.value not in options:
-                    raise Exception(f"Value '{node.value}' of node '{node.name}' doesn't match with any option:",options)
+            self.nodes[n].value = self._post_symbols(node.value)
+            self.nodes[n].code = self._post_symbols(node.code)
         
     # Group comment lines
     def post_comments(self):
@@ -120,9 +82,9 @@ class ParsePPML:
         nodes = [self.nodes.pop(0)]
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
-            if nodes[-1].dtname=='empty':
+            if nodes[-1].keyword=='empty':
                 nodes.append(node)
-            elif nodes[-1].indent<node.indent and node.dtname=='comment':
+            elif nodes[-1].indent<node.indent and node.keyword=='comment':
                 nodes[-1].comments = nodes[-1].comments + node.comments
             else:
                 nodes.append(node)
@@ -131,43 +93,128 @@ class ParsePPML:
         nodes = [self.nodes.pop(-1)]
         while len(self.nodes)>0:
             node = self.nodes.pop(-1)
-            if nodes[-1].dtname=='empty':
+            if nodes[-1].keyword=='empty':
                 nodes.append(node)
-            elif nodes[-1].indent==node.indent and node.dtname=='comment':
+            elif nodes[-1].indent==node.indent and node.keyword=='comment':
                 nodes[-1].comments = node.comments + nodes[-1].comments
             else:
                 nodes.append(node)            
         self.nodes = list(reversed(nodes))
+        """
+        # Assign lonely comments to following sibling nodes
+        nodes = [self.nodes.pop(0)]
+        cnode = None
+        while len(self.nodes)>0:
+            node = self.nodes.pop(0)
+            if node.keyword=='comment':
+                cnode = node
+                continue
+            elif node.keyword=='empty':
+                continue
+            elif cnode:
+                if cnode.indent==node.indent:
+                    node.comments =  cnode.comments + node.comments
+                elif cnode.indent>node.indent:
+                    cnode = None
+            nodes.append(node)
+        self.nodes = nodes
+        """
         # Flatten comments lists
         for n,node in enumerate(self.nodes):
             self.nodes[n].comments = "\n".join(node.comments)
 
-    # Remove empty nodes
+    # Assign options to preceeding nodes
+    def post_options(self):
+        # Collect options to correpsonding nodes
+        nodes = [self.nodes.pop(0)]
+        while len(self.nodes)>0:
+            node = self.nodes.pop(0)
+            if node.keyword=='option':
+                if nodes[-1].options is not None:
+                    nodes[-1].options.append( node )
+                else:
+                    raise Exception(f"Node '{nodes[-1].keyword}' does not support options")
+            else:
+                nodes.append(node)
+        self.nodes = nodes
+            
+    # Remove empty nodes and lonely comments
     def post_remove_empty(self):
         nodes = []
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
-            if node.dtname!='empty':
+            if node.keyword not in ['empty','comment']:
                 nodes.append(node)
         self.nodes = nodes
-            
+
+    # Change node names according to node hierarchy
+    def post_hierarchy(self):
+        indent, names = [-1], []
+        for node in self.nodes:
+            if node.name is None:
+                continue
+            while node.indent<=indent[-1]:
+                indent.pop()
+                names.pop()                    
+            names = names+[node.name]
+            indent = indent+[node.indent]
+            node.name = ".".join(names)
+
+    # Modify node values
+    def post_modify(self):
+        nodes = {}
+        while len(self.nodes)>0:
+            node = self.nodes.pop(0)
+            if node.name in nodes:
+                nodes[node.name].mods.append( node )
+            else:    
+                nodes[node.name] = node
+        self.nodes = nodes
+
+    # Validate node values
+    def _post_cast(self, value, dtype, dimension):
+        if dimension:
+            if isinstance(value, str):
+                return np.array(json.loads(value), dtype=dtype)
+            else:
+                return np.array(value, dtype=dtype)
+        else:
+            return dtype(value)
+    def post_values(self):
+        for key,node in self.nodes.items():
+            if np.isscalar(node.value) and node.value in [None,'none','None']:
+                if node.defined:
+                    raise Exception(f"Value of node '{self.name}' must be defined")
+                else:
+                    node.value = None
+            else:
+                node.value = self._post_cast(node.value, node.dtype, node.dimension)
+            if node.options:
+                options = [] if node.defined else [None]
+                for option in node.options:
+                    option.value = self._post_cast(option.value, node.dtype, node.dimension)
+                    options.append(option.value)
+                if node.value not in options:
+                    raise Exception(f"Value '{node.value}' of node '{node.name}' doesn't match with any option:",options)
+
     # Parse a code line
     def parse(self, ppml):
-        self.pre_lines(ppml.split('\n'))
-        self.pre_blocks()
-        self.pre_symbols()
-        self.pre_options()
+        self.pre_lines(ppml.split('\n'))     # determine nodes from lines
+        self.pre_blocks()                    # combine text blocks
+        self.pre_symbols()                   # encode text symbols
         for n,node in enumerate(self.nodes):
-                node = node.process_code()
+                node = node.parse_code()   # process code
                 if node:
                     self.nodes[n] = node
-        self.post_options()
-        self.post_check_options()
-        self.post_symbols()
-        self.post_comments()
-        self.post_remove_empty()
-        for node in self.nodes:
-            print(node.indent,'|',node.dtname,'|',node.name,'|',repr(node.value),
+        self.post_symbols()                  # decode text symbols
+        self.post_comments()                 # combine comments
+        self.post_options()                  # collect options
+        self.post_remove_empty()             # remove empty nodes
+        self.post_hierarchy()                # set hierarchycal naming
+        self.post_modify()                   # modify node values
+        self.post_values()                   # validate node values              
+        for node in self.nodes.values():
+            print(node.name,'|',node.indent,'|',node.keyword,'|',repr(node.value),
                   '|',repr(node.comments),
                   '|',repr(node.units), end='')
             if hasattr(node,'options'):

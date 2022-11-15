@@ -1,20 +1,24 @@
 from typing import List
 from pydantic import BaseModel
+import numpy as np
+import json
 
 class PPML_Type(BaseModel):
     code: str 
     line: int
     source: str
-    dtname: str
+    keyword: str
+    
+    dtype = str
     indent: int = 0
     name: str = None
-
-    value: int = None
-    comments: str = []
+    value: str = None
     defined: bool = False
-    dimension: List[tuple] = None
     units: str = None
-    options: List[str] = None
+    comments: str = []
+    dimension: List[tuple] = None
+    options: List[BaseModel] = None
+    mods: List[BaseModel] = []
     
     def __init__(self, parent):
         kwargs = {}
@@ -26,56 +30,41 @@ class PPML_Type(BaseModel):
         super().__init__(**kwargs)
             
 class PPML_Type_Empty(PPML_Type):
-    dtname: str = 'empty'
-    code: str = ''
-    value: str = None
+    keyword: str = 'empty'
 
 class PPML_Type_Mod(PPML_Type):
-    dtname: str = 'mod'
-    value: str = None
-    dtcast = str
+    keyword: str = 'mod'
 
 class PPML_Type_Group(PPML_Type):
-    dtname: str = 'group'
-    code: str = ''
-    value: str = None
+    keyword: str = 'group'
 
 class PPML_Type_Comment(PPML_Type):
-    dtname: str = 'comment'
-    value: str = None
-    dtcast = str
+    keyword: str = 'comment'
 
 class PPML_Type_Option(PPML_Type):
-    dtname: str = 'option'
-    value: str = None
-    dtcast = str
+    keyword: str = 'option'
     
 class PPML_Type_Boolean(PPML_Type):
+    keyword: str = 'bool'
     value: bool = None
-    dtname: str = 'bool'
-    dtcast = bool
+    dtype = bool
     
 class PPML_Type_Integer(PPML_Type):
+    keyword: str = 'int'
     value: int = None
-    dtname: str = 'int'
-    dtcast = int
-    options: List[int] = []
+    options: List[BaseModel] = []
+    dtype = int
 
 class PPML_Type_Float(PPML_Type):
+    keyword: str = 'float'
     value: float = None
-    dtname: str = 'float'
-    dtcast = float
-    options: List[float] = []
+    options: List[BaseModel] = []
+    dtype = float
 
 class PPML_Type_String(PPML_Type):
-    value: str = None
-    dtname: str = 'str'
-    dtcast = str
-    options: List[str] = []
+    keyword: str = 'str'
 
 class PPML_Type_Table(PPML_Type):
-    value: str = None
-    dtname: str = 'table'
-    dtcast = str
+    keyword: str = 'table'
 
 
