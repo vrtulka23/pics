@@ -16,10 +16,11 @@ height int = none
     = 55 J # some other text
 
 nums1 int![3] = [4234,34,2]
-nums2 float[2:2][2] = [[4234,34],[234,34]]
-  nums3 int[:2][2] = [[4234,34],[234,34]]
+nums2 float[2:2][2] = [[4234,34],[234,34]] kg
+  nums3 int[:2][3] = [[4234,33,34],[234,3,34]]
 nums4 int[2:] = [4234,34,234,34]
-nums5 int[:2][2] = """
+
+nums5 int[1:][3] = """
 [[4234,34,35],
 [234,34,644],
 [353,2356,234]]
@@ -45,6 +46,7 @@ something
 
   # lonely comment
   # second lonely comment
+  # all lonely comments will be removed
 
   # before
   else int = 1  # on

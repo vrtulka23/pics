@@ -160,7 +160,7 @@ class ParsePPML:
             indent = indent+[node.indent]
             node.name = ".".join(names)
 
-    # Modify node values
+    # Add modifications to nodes
     def post_modify(self):
         nodes = {}
         while len(self.nodes)>0:
@@ -171,29 +171,47 @@ class ParsePPML:
                 nodes[node.name] = node
         self.nodes = nodes
 
-    # Validate node values
-    def _post_cast(self, value, dtype, dimension):
-        if dimension:
-            if isinstance(value, str):
-                return np.array(json.loads(value), dtype=dtype)
+    # Process values
+    def _post_cast(self, src, node):
+        if np.isscalar(src.value) and src.value in [None,'none','None']:
+            # validate none values
+            if node.defined:
+                raise Exception(f"Value of node '{node.name}' must be defined")
             else:
-                return np.array(value, dtype=dtype)
+                value = None
+        elif node.dimension:
+            # cast multidimensional values
+            if isinstance(src.value, str):
+                value = np.array(json.loads(src.value), dtype=node.dtype)
+            else:
+                value = np.array(src.value, dtype=node.dtype)
+            # check if dimensions are correct
+            for d,dim in enumerate(node.dimension):
+                shape = value.shape[d]
+                if dim[0] is not None and shape < dim[0]:
+                    raise Exception(f"Node '{node.name}' has invalid dimension: dim({d})={shape} < {dim[0]}")
+                if dim[1] is not None and shape > dim[1]:
+                    raise Exception(f"Node '{node.name}' has invalid dimension: dim({d})={shape} > {dim[1]}")
         else:
-            return dtype(value)
+            # cast scalar values
+            value = node.dtype(src.value)
+        return value
     def post_values(self):
         for key,node in self.nodes.items():
-            if np.isscalar(node.value) and node.value in [None,'none','None']:
-                if node.defined:
-                    raise Exception(f"Value of node '{self.name}' must be defined")
-                else:
-                    node.value = None
-            else:
-                node.value = self._post_cast(node.value, node.dtype, node.dimension)
+            # cast definition value
+            node.value = self._post_cast(node, node)
+            # cast modifications
+            if node.mods:
+                for mod in node.mods:
+                    node.value = self._post_cast(mod, node)
+            # parse options
             if node.options:
                 options = [] if node.defined else [None]
+                # cast options
                 for option in node.options:
-                    option.value = self._post_cast(option.value, node.dtype, node.dimension)
+                    option.value = self._post_cast(option, node)
                     options.append(option.value)
+                # check if node value is in options
                 if node.value not in options:
                     raise Exception(f"Value '{node.value}' of node '{node.name}' doesn't match with any option:",options)
 
