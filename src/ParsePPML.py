@@ -137,7 +137,20 @@ class ParsePPML:
             else:
                 nodes.append(node)
         self.nodes = nodes
-            
+
+    # Expand nodes that have a spetial feature
+    def post_parse_types(self):
+        nodes = []
+        while len(self.nodes)>0:
+            node = self.nodes.pop(0)
+            parsed = node.parse()
+            if parsed:
+                for node in parsed:
+                    nodes.append(node)
+            else:
+                nodes.append(node)
+        self.nodes = nodes
+                
     # Remove empty nodes and lonely comments
     def post_remove_empty(self):
         nodes = []
@@ -227,6 +240,7 @@ class ParsePPML:
         self.post_symbols()                  # decode text symbols
         self.post_comments()                 # combine comments
         self.post_options()                  # collect options
+        self.post_parse_types()              # parse special node types
         self.post_remove_empty()             # remove empty nodes
         self.post_hierarchy()                # set hierarchycal naming
         self.post_modify()                   # modify node values

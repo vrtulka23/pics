@@ -20,11 +20,31 @@ nums2 float[2:2][2] = [[4234,34],[234,34]] kg
   nums3 int[:2][3] = [[4234,33,34],[234,3,34]]
 nums4 int[2:] = [4234,34,234,34]
 
-nums5 int[1:][3] = """
+blocks
+
+  matrix int[1:][3] = """
 [[4234,34,35],
 [234,34,644],
 [353,2356,234]]
 """
+
+  outputs table = """
+time float s
+snapshot int
+intensity float W/m2
+
+0.234 0 2.34
+1.355 1 9.4
+2.535 2 3.4
+3.255 3 2.3
+4.455 4 23.4
+  """
+
+  text str = """
+   tripple qotes # ' " \' \"
+block of text
+""" # with comment
+    # second comment
 
 nums6 str[:] = ["a","bd","c3sa"]
 width float! = 23.4 cm
@@ -36,11 +56,6 @@ width float! = 23.4 cm
     wsquotes3 str = 'sing"le # q\'uotes'
     woquotes4 str = noqotes  # with comment
   wdquotes2.woquotes4 = lalala
-text str = """
-   tripple qotes # ' " \' \"
-block of text
-""" # with comment
-    # second comment
 something
   # comment of else
 
@@ -57,6 +72,7 @@ something
 count = 24
 
 height.count = 24  # modification
+height.count = 55 # last mod
 '''
 
 def test_blocks():

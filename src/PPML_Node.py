@@ -4,8 +4,9 @@ import numpy as np
 import re
 
 from PPML_Type import *
+from PPML_Parser import *
 
-class PPML_Node(BaseModel):
+class PPML_Node(PPML_Parser, BaseModel):
 
     node: PPML_Type = None
     code: str               # original code
@@ -25,79 +26,25 @@ class PPML_Node(BaseModel):
         kwargs['ccode'] = kwargs['code']
         super().__init__(**kwargs)
     
-    def _strip(self, text):
-        self.ccode = self.ccode[len(text):]
-
-    def _isempty(self):
-        return self.ccode.strip()==''
-        
-    def _get_indent(self):
-        m=re.match('^(\s*)',self.ccode)
-        if m:
-            self.indent = len(m.group(1))
-            self._strip(m.group(1))
-            
-    def _get_name(self):
-        m=re.match('^([a-zA-Z0-9_.-]+)', self.ccode)
-        if m:
-            self.name = m.group(1)
-            self._strip(m.group(1))
-        else:
-            raise Exception("Name has an invalid format: "+self.ccode)
-
-    def _get_defined(self):
-        if self.ccode[:1]=='!':
-            self.defined = True
-            self._strip('!')
-            if self.node:
-                self.node.defined = self.defined
-        
-    def _get_dimension(self):
-        pattern = '^(\[([0-9:]+)\])'
-        m=re.match(pattern, self.ccode)
-        if m: self.dimension = []
-        while m:
-            if ":" not in m.group(2):
-                self.dimension.append((int(m.group(2)),int(m.group(2))))
-            else:
-                dmin,dmax = m.group(2).split(':')
-                self.dimension.append((
-                    int(dmin) if dmin else None,
-                    int(dmax) if dmax else None
-                ))
-            self._strip(m.group(1))
-            m=re.match(pattern, self.ccode)
-        if self.node:
-            self.node.dimension = self.dimension
-        
-    def _get_value(self):
-        m=re.match('^(\s*=\s*("""(.*)"""|"(.*)"|\'(.*)\'|([^# ]+)))', self.ccode)
-        if m:
-            # Reduce matches
-            results = [x for x in m.groups()[1:] if x is not None]
-            # Save value
-            self.value = results[1]
-            self._strip(m.group(1))
-        if self.value is None:
-            raise Exception("Value has to be set after equal sign")
-        if self.node:
-            self.node.value = self.value
-        
-    def _get_units(self):
-        m=re.match('^(\s*([^\s#=]+))', self.ccode)
-        if m:
-            self.units = m.group(2)
-            self._strip(m.group(1))
-            if self.node:
-                self.node.units = self.units
-        
-    def _get_comment(self):
-        m=re.match('^(\s*#\s*(.*))$', self.ccode)
-        if m:
-            self.comment = m.group(2)
-            self._strip(m.group(1))
-            if self.node:
-                self.node.comments.append( self.comment )
+    def _node_type(self):
+        types = [
+            PPML_Type_Boolean,
+            PPML_Type_Integer,
+            PPML_Type_Float,
+            PPML_Type_String,
+            PPML_Type_Table,
+        ]
+        for nd in types:
+           node_try = nd(
+               parent = self,
+           )
+           m=re.match('^(\s+'+node_try.keyword+')', self.ccode)
+           if m:
+               self.node = node_try
+               break
+        if self.node is None:
+            raise Exception(f"Type not recognized: {self.code}")
+        self._strip(m.group(1))
 
     def _node_empty(self):
         if self._isempty():
@@ -127,32 +74,7 @@ class PPML_Node(BaseModel):
             self.node = PPML_Type_Mod(self)
             self._get_value()
             self._get_comment()
-    
-    def _node_type(self):
-        types = [
-            PPML_Type_Boolean,
-            PPML_Type_Integer,
-            PPML_Type_Float,
-            PPML_Type_String,
-            PPML_Type_Table,
-        ]
-        for nd in types:
-           node_try = nd(
-               parent = self,
-           )
-           m=re.match('^(\s+'+node_try.keyword+')', self.ccode)
-           if m:
-               self.node = node_try
-               break
-        if self.node is None:
-            raise Exception(f"Type not recognized: {self.code}")
-        self._strip(m.group(1))
-        self._get_defined()
-        self._get_dimension()
-        self._get_value()
-        self._get_units()
-        self._get_comment()
-    
+            
     def parse_code(self):
         self.ccode = self.code
         steps = [
@@ -163,11 +85,15 @@ class PPML_Node(BaseModel):
             self._get_name,      # parse node name
             self._node_group,    # parse group node
             self._node_mod,      # parse base node (modification)
-            self._node_type,     # parse type node
+            self._node_type,      # parse node type
+            self._get_defined,   # parse node defined
+            self._get_dimension, # parse node dimensions
+            self._get_value,     # parse node value
+            self._get_units,     # parse node units
+            self._get_comment,   # parse node comments
         ]
         for step in steps:
             step()
             if self.node and self._isempty():
                 return self.node
         raise Exception(f"Incorrect format: {self.code}")
-
