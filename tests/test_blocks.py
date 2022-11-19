@@ -30,6 +30,7 @@ blocks
 [234,34,644],
 [353,2356,234]]
 """
+  matrix2 int[1:][3:] = {tests/block_matrix.txt}
 
   outputs table = """
 time float s
@@ -43,11 +44,17 @@ intensity float W/m2
 4.455 4 23.4
   """
 
+  outputs2 table = {tests/block_table.txt}
+
   text str = """
    tripple qotes # ' " \' \"
 block of text
 """ # with comment
     # second comment
+
+  text2 str = {tests/block_text.txt}
+
+  {./block_nodes.txt}
 
 nums6 str[:] = ["a","bd","c3sa"]
 width float! = 23.4 cm

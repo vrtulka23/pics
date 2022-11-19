@@ -210,8 +210,8 @@ class ParsePPML:
                 if node.value not in options:
                     raise Exception(f"Value '{node.value}' of node '{node.name}' doesn't match with any option:",options)
 
-    # Parse a code line
-    def parse(self, ppml):
+    # Prepare raw nodes
+    def initialize(self, ppml):
         self.pre_lines(ppml.split('\n'))     # determine nodes from lines
         self.pre_blocks()                    # combine text blocks
         self.pre_symbols()                   # encode text symbols
@@ -222,11 +222,19 @@ class ParsePPML:
         self.post_symbols()                  # decode text symbols
         self.post_comments()                 # combine comments
         self.post_options()                  # collect options
-        self.post_parse_types()              # parse special node types
         self.post_remove_empty()             # remove empty nodes
+        self.post_parse_types()              # parse special node types
+
+    # Finalize all nodes
+    def finalize(self):
         self.post_hierarchy()                # set hierarchycal naming
         self.post_modify()                   # modify node values
         self.post_values()                   # validate node values              
+        
+    # Parse a code line
+    def parse(self, ppml):
+        self.initialize(ppml)
+        self.finalize()
         for node in self.nodes.values():
             print(node.name,'|',node.indent,'|',node.keyword,'|',repr(node.value),
                   '|',repr(node.comments),

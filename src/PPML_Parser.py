@@ -73,9 +73,29 @@ class PPML_Parser(BaseModel):
                 ))
             self._strip(m.group(1))
             m=re.match(pattern, self.ccode)
-        
+
+    def get_block(self):
+        m=re.match('^({(.*)})', self.ccode)
+        if m:
+            self.value = m.group(2)
+            print(self.name, self.ccode)
+            self._strip(m.group(1))
+            
     def get_value(self):
-        m=re.match('^(\s*=\s*("""(.*)"""|"(.*)"|\'(.*)\'|([^# ]+)))', self.ccode)
+        # Remove equal sign
+        m=re.match('^(\s*=\s*)', self.ccode)
+        if m:
+            self._strip(m.group(1))
+        else:
+            raise Exception("Value has to be set after equal sign")
+        # Import block values if required
+        self.get_block()
+        if self.value:
+            with open(self.value,'r') as f:
+                self.value = f.read()
+            return
+        # If not block value, parse standard text value
+        m=re.match('^(("""(.*)"""|"(.*)"|\'(.*)\'|([^# ]+)))', self.ccode)
         if m:
             # Reduce matches
             results = [x for x in m.groups()[1:] if x is not None]

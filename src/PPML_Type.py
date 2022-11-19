@@ -81,27 +81,30 @@ class PPML_Type_Float(PPML_Type):
 class PPML_Type_String(PPML_Type):
     keyword: str = 'str'
 
+class PPML_Type_Block(PPML_Type):
+    keyword: str = 'block'
+    
 class PPML_Type_Table(PPML_Type):
     keyword: str = 'table'
-            
+    
     def parse(self):
-        name = self.name
         lines = self.value_raw.split("\n")
+        # Parse nodes from table header
         nodes = []
         while len(lines)>0:
             line = lines.pop(0)
             if line.strip()=='':
                 break
+            # Parse node parameters
             parser = PPML_Parser(
                 code = line
             )
             parser.get_name()      # parse node name
-            parser.name = name+'.'+parser.name
             parser.get_type()      # parse node type
             parser.get_units()     # parse node units
-            parser.value = []
             if not parser.isempty():
                 raise Exception(f"Incorrect header format: {line}")
+            # Initialize actual node
             types = {
                 'bool':  PPML_Type_Boolean,
                 'int':   PPML_Type_Integer,
@@ -118,8 +121,11 @@ class PPML_Type_Table(PPML_Type):
                 nodes.append(node)
             else:
                 raise Exception(f"Incorrect format or missing empty line after header: {self.code}")
+        # Remove whitespaces from all table rows
         for l,line in enumerate(lines):
             lines[l] = line.strip()
+            if line=='': del lines[l]
+        # Read table and assign its values to the nodes
         ncols = len(nodes)
         table = csv.reader(lines, delimiter=' ')
         for row in table:
@@ -127,8 +133,11 @@ class PPML_Type_Table(PPML_Type):
                 raise Exception(f"Number of header nodes does not match number of table columns: {ncols} != {len(row)}")
             for c in range(ncols):
                 nodes[c].value.append(row[c])
+        # set additional node parameters
         for node in nodes:
             nvalues = len(node.value)
             node.dimension = [(nvalues,nvalues)]
+            node.name = self.name+'.'+node.name
             node.comments = ''
+            node.indent = self.indent
         return nodes
