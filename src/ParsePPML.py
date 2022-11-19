@@ -73,7 +73,7 @@ class ParsePPML:
     def post_symbols(self):
         # Remove replacement marks
         for n,node in enumerate(self.nodes):
-            self.nodes[n].value = self._post_symbols(node.value)
+            self.nodes[n].value_raw = self._post_symbols(node.value_raw)
             self.nodes[n].code = self._post_symbols(node.code)
         
     # Group comment lines
@@ -100,25 +100,6 @@ class ParsePPML:
             else:
                 nodes.append(node)            
         self.nodes = list(reversed(nodes))
-        """
-        # Assign lonely comments to following sibling nodes
-        nodes = [self.nodes.pop(0)]
-        cnode = None
-        while len(self.nodes)>0:
-            node = self.nodes.pop(0)
-            if node.keyword=='comment':
-                cnode = node
-                continue
-            elif node.keyword=='empty':
-                continue
-            elif cnode:
-                if cnode.indent==node.indent:
-                    node.comments =  cnode.comments + node.comments
-                elif cnode.indent>node.indent:
-                    cnode = None
-            nodes.append(node)
-        self.nodes = nodes
-        """
         # Flatten comments lists
         for n,node in enumerate(self.nodes):
             self.nodes[n].comments = "\n".join(node.comments)
@@ -186,7 +167,8 @@ class ParsePPML:
 
     # Process values
     def _post_cast(self, src, node):
-        if np.isscalar(src.value) and src.value in [None,'none','None']:
+        value = src.value if src.value else src.value_raw
+        if np.isscalar(value) and value in [None,'none','None']:
             # validate none values
             if node.defined:
                 raise Exception(f"Value of node '{node.name}' must be defined")
@@ -194,10 +176,10 @@ class ParsePPML:
                 value = None
         elif node.dimension:
             # cast multidimensional values
-            if isinstance(src.value, str):
-                value = np.array(json.loads(src.value), dtype=node.dtype)
+            if isinstance(value, str):
+                value = np.array(json.loads(value), dtype=node.dtype)
             else:
-                value = np.array(src.value, dtype=node.dtype)
+                value = np.array(value, dtype=node.dtype)
             # check if dimensions are correct
             for d,dim in enumerate(node.dimension):
                 shape = value.shape[d]
@@ -207,7 +189,7 @@ class ParsePPML:
                     raise Exception(f"Node '{node.name}' has invalid dimension: dim({d})={shape} > {dim[1]}")
         else:
             # cast scalar values
-            value = node.dtype(src.value)
+            value = node.dtype(value)
         return value
     def post_values(self):
         for key,node in self.nodes.items():
@@ -234,7 +216,7 @@ class ParsePPML:
         self.pre_blocks()                    # combine text blocks
         self.pre_symbols()                   # encode text symbols
         for n,node in enumerate(self.nodes):
-                node = node.parse_code()   # process code
+                node = node.parse()   # process code
                 if node:
                     self.nodes[n] = node
         self.post_symbols()                  # decode text symbols

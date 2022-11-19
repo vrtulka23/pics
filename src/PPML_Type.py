@@ -16,20 +16,31 @@ class PPML_Type(BaseModel):
     indent: int = 0
     name: str = None
     value: str = None
+    value_raw: str = None
     defined: bool = False
     units: str = None
-    comments: str = []
+    comments: List[str] = []
     dimension: List[tuple] = None
     options: List[BaseModel] = None
     mods: List[BaseModel] = []
     
-    def __init__(self, parent):
+    def __init__(self, parser, line, source):
         kwargs = {}
-        kwargs['line'] = parent.line
-        kwargs['source'] = parent.source
-        kwargs['indent'] = parent.indent
-        kwargs['code'] = parent.code
-        kwargs['name'] = parent.name
+        kwargs['line'] = line
+        kwargs['source'] = source
+        kwargs['indent'] = parser.indent
+        kwargs['code'] = parser.code
+        kwargs['name'] = parser.name
+        if parser.value:
+            kwargs['value_raw'] = parser.value
+        if parser.units:
+            kwargs['units'] = parser.units
+        if parser.comment:
+            kwargs['comments'] = [ parser.comment ]
+        if parser.dimension:
+            kwargs['dimension'] = parser.dimension
+        if parser.defined:
+            kwargs['defined'] = parser.defined
         super().__init__(**kwargs)
 
     def parse(self):
@@ -70,51 +81,41 @@ class PPML_Type_Float(PPML_Type):
 class PPML_Type_String(PPML_Type):
     keyword: str = 'str'
 
-class PPML_Type_Table(PPML_Parser, PPML_Type):
-    node: PPML_Type = None
+class PPML_Type_Table(PPML_Type):
     keyword: str = 'table'
-    ccode: str = None
-    
-    def _node_type(self):
-        types = [
-            PPML_Type_Boolean,
-            PPML_Type_Integer,
-            PPML_Type_Float,
-            PPML_Type_String,
-        ]
-        for nd in types:
-           node_try = nd(
-               parent = self,
-           )
-           m=re.match('^(\s+'+node_try.keyword+')', self.ccode)
-           if m:
-               self.node = node_try
-               self._strip(m.group(1))
-               break
-        if self.node is None:
-            raise Exception(f"Type not recognized: {self.code}")
-        
+            
     def parse(self):
         name = self.name
-        lines = self.value.split("\n")
+        lines = self.value_raw.split("\n")
         nodes = []
         while len(lines)>0:
             line = lines.pop(0)
-            if line=='':
+            if line.strip()=='':
                 break
-            self.ccode = line
-            self.code = line
-            steps = [
-                self._get_name,      # parse node name
-                self._node_type,     # parse node type
-                self._get_units,     # parse node units
-            ]
-            for step in steps:
-                step()
-            if self.node and self._isempty():
-                self.node.name = name+'.'+self.node.name
-                self.node.value = []
-                nodes.append(self.node)
+            parser = PPML_Parser(
+                code = line
+            )
+            parser.get_name()      # parse node name
+            parser.name = name+'.'+parser.name
+            parser.get_type()      # parse node type
+            parser.get_units()     # parse node units
+            parser.value = []
+            if not parser.isempty():
+                raise Exception(f"Incorrect header format: {line}")
+            types = {
+                'bool':  PPML_Type_Boolean,
+                'int':   PPML_Type_Integer,
+                'float': PPML_Type_Float,
+                'str':   PPML_Type_String,
+            }
+            if parser.keyword in types:
+                node = types[parser.keyword](
+                    parser,
+                    self.line,
+                    self.source,
+                )
+                node.value = []
+                nodes.append(node)
             else:
                 raise Exception(f"Incorrect format or missing empty line after header: {self.code}")
         for l,line in enumerate(lines):

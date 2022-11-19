@@ -1,21 +1,40 @@
+from typing import List
 from pydantic import BaseModel
 import re
 
-class PPML_Parser:
+class PPML_Parser(BaseModel):
+    code: str 
+    ccode: str
+
+    keyword: str = None
+    dtype = str
+    indent: int = 0
+    name: str = None
+    value: str = None
+    defined: bool = False
+    units: str = None
+    comment: str = None
+    dimension: List[tuple] = None
+    options: List[BaseModel] = None
+    mods: List[BaseModel] = []
+
+    def __init__(self, **kwargs):
+        kwargs['ccode'] = kwargs['code']
+        super().__init__(**kwargs)
 
     def _strip(self, text):
         self.ccode = self.ccode[len(text):]
 
-    def _isempty(self):
+    def isempty(self):
         return self.ccode.strip()==''
 
-    def _get_indent(self):
+    def get_indent(self):
         m=re.match('^(\s*)',self.ccode)
         if m:
             self.indent = len(m.group(1))
             self._strip(m.group(1))
             
-    def _get_name(self):
+    def get_name(self):
         m=re.match('^([a-zA-Z0-9_.-]+)', self.ccode)
         if m:
             self.name = m.group(1)
@@ -23,14 +42,23 @@ class PPML_Parser:
         else:
             raise Exception("Name has an invalid format: "+self.ccode)
 
-    def _get_defined(self):
+    def get_type(self):
+        types = ['bool','int','float','str','table']
+        for keyword in types:
+           m=re.match('^(\s+'+keyword+')', self.ccode)
+           if m:
+               self.keyword = keyword
+               self._strip(m.group(1))
+               break
+        if self.keyword is None:
+            raise Exception(f"Type not recognized: {self.code}")
+        
+    def get_defined(self):
         if self.ccode[:1]=='!':
             self.defined = True
             self._strip('!')
-            if self.node:
-                self.node.defined = self.defined
         
-    def _get_dimension(self):
+    def get_dimension(self):
         pattern = '^(\[([0-9:]+)\])'
         m=re.match(pattern, self.ccode)
         if m: self.dimension = []
@@ -45,10 +73,8 @@ class PPML_Parser:
                 ))
             self._strip(m.group(1))
             m=re.match(pattern, self.ccode)
-        if self.node:
-            self.node.dimension = self.dimension
         
-    def _get_value(self):
+    def get_value(self):
         m=re.match('^(\s*=\s*("""(.*)"""|"(.*)"|\'(.*)\'|([^# ]+)))', self.ccode)
         if m:
             # Reduce matches
@@ -58,21 +84,15 @@ class PPML_Parser:
             self._strip(m.group(1))
         if self.value is None:
             raise Exception("Value has to be set after equal sign")
-        if self.node:
-            self.node.value = self.value
         
-    def _get_units(self):
-        m=re.match('^(\s*([^\s#=]+))', self.ccode)
+    def get_units(self):
+        m=re.match('^(\s+([^\s#=]+))', self.ccode)
         if m:
             self.units = m.group(2)
             self._strip(m.group(1))
-            if self.node:
-                self.node.units = self.units
         
-    def _get_comment(self):
+    def get_comment(self):
         m=re.match('^(\s*#\s*(.*))$', self.ccode)
         if m:
             self.comment = m.group(2)
             self._strip(m.group(1))
-            if self.node:
-                self.node.comments.append( self.comment )

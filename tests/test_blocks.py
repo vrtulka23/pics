@@ -15,6 +15,9 @@ height int = none
     = 25 erg/K
     = 55 J # some other text
 
+height.count = 24  # modification
+height.count = 55 # last mod
+
 nums1 int![3] = [4234,34,2]
 nums2 float[2:2][2] = [[4234,34],[234,34]] kg
   nums3 int[:2][3] = [[4234,33,34],[234,3,34]]
@@ -68,11 +71,6 @@ something
     # after
   foo int = 2
     bar int = 3
-
-count = 24
-
-height.count = 24  # modification
-height.count = 55 # last mod
 '''
 
 def test_blocks():
