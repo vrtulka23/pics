@@ -63,16 +63,6 @@ class PPML_Node(BaseModel):
                 self.line,
                 self.source,                
             )
-
-    def _node_block(self):
-        m=re.match('^{(.*)}', self.parser.ccode)
-        if m:
-            self.parser.get_block()
-            self.node = PPML_Type_Block(
-                self.parser,
-                self.line,
-                self.source,
-            )
             
     def _node_group(self):
         if self.parser.isempty():
@@ -103,10 +93,9 @@ class PPML_Node(BaseModel):
             self.parser.get_indent,   # parse line indent
             self._node_comment,       # parse comment node
             self._node_option,        # parse option node
-            self._node_block,         # parse block imports
             self.parser.get_name,     # parse node name
             self._node_group,         # parse group node
-            self._node_mod,           # parse base node (modification)
+            self._node_mod,           # parse modification node
             self._node_type,          # parse node type
         ]
         for step in steps:

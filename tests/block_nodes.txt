@@ -1,0 +1,2 @@
+imported1 int = 1
+imported2 float = 3

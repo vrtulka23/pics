@@ -6,10 +6,11 @@ from typing import List
 from PPML_Node import *
     
 class ParsePPML:
+    lines: str
     nodes: List = []
     
-    def __init__(self,**kwargs):
-        pass
+    def __init__(self, code, **kwargs):
+        self.lines = code.split('\n')
     
     def __enter__(self):
         return self
@@ -20,9 +21,23 @@ class ParsePPML:
     def open(self, file_name):
         pass
 
+    # Import external code
+    def pre_import(self):
+        lines = []
+        while len(self.lines)>0:
+            line = self.lines.pop(0)
+            m=re.match('^(\s*){(.*)}', line)
+            if m:
+                with open(m.group(2),'r') as f:
+                    for line in f.readlines():
+                        self.lines.insert(0, m.group(1) + line)
+            else:
+                lines.append(line)
+        self.lines = lines
+        
     # Create nodes from code lines
-    def pre_lines(self, lines, source='inline'):
-        for l,line in enumerate(lines):
+    def pre_nodes(self, source='inline'):
+        for l,line in enumerate(self.lines):
             self.nodes.append(PPML_Node(
                 code = line,
                 line = l+1,
@@ -211,12 +226,13 @@ class ParsePPML:
                     raise Exception(f"Value '{node.value}' of node '{node.name}' doesn't match with any option:",options)
 
     # Prepare raw nodes
-    def initialize(self, ppml):
-        self.pre_lines(ppml.split('\n'))     # determine nodes from lines
+    def initialize(self):
+        self.pre_import()                    # import external code
+        self.pre_nodes()                     # determine nodes from lines
         self.pre_blocks()                    # combine text blocks
         self.pre_symbols()                   # encode text symbols
         for n,node in enumerate(self.nodes):
-                node = node.parse()   # process code
+                node = node.parse()          # process code
                 if node:
                     self.nodes[n] = node
         self.post_symbols()                  # decode text symbols
@@ -230,11 +246,9 @@ class ParsePPML:
         self.post_hierarchy()                # set hierarchycal naming
         self.post_modify()                   # modify node values
         self.post_values()                   # validate node values              
-        
-    # Parse a code line
-    def parse(self, ppml):
-        self.initialize(ppml)
-        self.finalize()
+
+    # Display fiinal nodes
+    def display(self):
         for node in self.nodes.values():
             print(node.name,'|',node.indent,'|',node.keyword,'|',repr(node.value),
                   '|',repr(node.comments),
@@ -243,4 +257,3 @@ class ParsePPML:
                 if node.options:
                     print(' |',[o.value for o in node.options], end='')
             print()
-        return True

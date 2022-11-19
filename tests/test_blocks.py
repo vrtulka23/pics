@@ -54,7 +54,7 @@ block of text
 
   text2 str = {tests/block_text.txt}
 
-  {./block_nodes.txt}
+  {tests/block_nodes.txt}
 
 nums6 str[:] = ["a","bd","c3sa"]
 width float! = 23.4 cm
@@ -81,8 +81,11 @@ something
 '''
 
 def test_blocks():
-    with ParsePPML() as p:
-        assert p.parse(ppml)
+    with ParsePPML(ppml) as p:
+        p.initialize()
+        p.finalize()
+        p.display()
+    assert True
 
 if __name__ == "__main__":
     print()

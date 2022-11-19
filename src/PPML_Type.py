@@ -80,9 +80,6 @@ class PPML_Type_Float(PPML_Type):
 
 class PPML_Type_String(PPML_Type):
     keyword: str = 'str'
-
-class PPML_Type_Block(PPML_Type):
-    keyword: str = 'block'
     
 class PPML_Type_Table(PPML_Type):
     keyword: str = 'table'
