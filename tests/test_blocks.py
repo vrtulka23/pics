@@ -56,6 +56,8 @@ block of text
 
   {tests/block_nodes.txt}
 
+blocks2.{tests/block_nodes.txt}
+
 nums6 str[:] = ["a","bd","c3sa"]
 width float! = 23.4 cm
   = 23

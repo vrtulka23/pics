@@ -26,7 +26,7 @@ class ParsePPML:
         lines = []
         while len(self.lines)>0:
             line = self.lines.pop(0)
-            m=re.match('^(\s*){(.*)}', line)
+            m=re.match('^(\s*[a-zA-Z0-9_.-]*){(.*)}', line)
             if m:
                 with open(m.group(2),'r') as f:
                     for line in f.readlines():
