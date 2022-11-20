@@ -5,6 +5,7 @@ import json
 import csv
 
 from PPML_Parser import *
+import ParsePPML
 
 class PPML_Type(BaseModel):
     code: str 
@@ -24,10 +25,10 @@ class PPML_Type(BaseModel):
     options: List[BaseModel] = None
     mods: List[BaseModel] = []
     
-    def __init__(self, parser, line, source):
+    def __init__(self, parser):
         kwargs = {}
-        kwargs['line'] = line
-        kwargs['source'] = source
+        kwargs['line'] = parser.line
+        kwargs['source'] = parser.source
         kwargs['indent'] = parser.indent
         kwargs['code'] = parser.code
         kwargs['name'] = parser.name
@@ -80,6 +81,22 @@ class PPML_Type_Float(PPML_Type):
 
 class PPML_Type_String(PPML_Type):
     keyword: str = 'str'
+
+class PPML_Type_Import(PPML_Type):
+    keyword: str = 'import'
+
+    def parse(self):
+        # Parse import code
+        with ParsePPML.ParsePPML(self.value_raw) as p:
+            p.initialize()
+            # Add proper indent and hierarchy
+            for node in p.nodes:
+                node.indent = self.indent
+                node.source = self.source
+                node.line = self.line
+                if self.name:
+                    node.name = self.name+'.'+node.name
+            return p.nodes
     
 class PPML_Type_Table(PPML_Type):
     keyword: str = 'table'
@@ -94,7 +111,9 @@ class PPML_Type_Table(PPML_Type):
                 break
             # Parse node parameters
             parser = PPML_Parser(
-                code = line
+                code=line,
+                line=self.line,
+                source=self.source
             )
             parser.get_name()      # parse node name
             parser.get_type()      # parse node type
@@ -109,11 +128,7 @@ class PPML_Type_Table(PPML_Type):
                 'str':   PPML_Type_String,
             }
             if parser.keyword in types:
-                node = types[parser.keyword](
-                    parser,
-                    self.line,
-                    self.source,
-                )
+                node = types[parser.keyword](parser)
                 node.value = []
                 nodes.append(node)
             else:

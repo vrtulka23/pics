@@ -5,6 +5,8 @@ import re
 class PPML_Parser(BaseModel):
     code: str 
     ccode: str
+    line: int
+    source: str
 
     keyword: str = None
     dtype = str
@@ -21,7 +23,7 @@ class PPML_Parser(BaseModel):
     def __init__(self, **kwargs):
         kwargs['ccode'] = kwargs['code']
         super().__init__(**kwargs)
-
+    
     def _strip(self, text):
         self.ccode = self.ccode[len(text):]
 
@@ -41,7 +43,7 @@ class PPML_Parser(BaseModel):
             self._strip(m.group(1))
         else:
             raise Exception("Name has an invalid format: "+self.ccode)
-
+                    
     def get_type(self):
         types = ['bool','int','float','str','table']
         for keyword in types:
@@ -77,7 +79,9 @@ class PPML_Parser(BaseModel):
     def get_import(self):
         m=re.match('^({(.*)})', self.ccode)
         if m:
-            self.value = m.group(2)
+            with open(m.group(2),'r') as f:
+                self.source = m.group(2)
+                self.value = f.read()
             self._strip(m.group(1))
             
     def get_value(self):
@@ -90,8 +94,6 @@ class PPML_Parser(BaseModel):
         # Import block values if required
         self.get_import()
         if self.value:
-            with open(self.value,'r') as f:
-                self.value = f.read()
             return
         # If not block value, parse standard text value
         m=re.match('^(("""(.*)"""|"(.*)"|\'(.*)\'|([^# ]+)))', self.ccode)

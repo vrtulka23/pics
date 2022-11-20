@@ -20,20 +20,6 @@ class ParsePPML:
 
     def open(self, file_name):
         pass
-
-    # Import external code
-    def pre_import(self):
-        lines = []
-        while len(self.lines)>0:
-            line = self.lines.pop(0)
-            m=re.match('^(\s*[a-zA-Z0-9_.-]*){(.*)}', line)
-            if m:
-                with open(m.group(2),'r') as f:
-                    for line in f.readlines():
-                        self.lines.insert(0, m.group(1) + line)
-            else:
-                lines.append(line)
-        self.lines = lines
         
     # Create nodes from code lines
     def pre_nodes(self, source='inline'):
@@ -227,7 +213,6 @@ class ParsePPML:
 
     # Prepare raw nodes
     def initialize(self):
-        self.pre_import()                    # import external code
         self.pre_nodes()                     # determine nodes from lines
         self.pre_blocks()                    # combine text blocks
         self.pre_symbols()                   # encode text symbols

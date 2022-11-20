@@ -54,9 +54,9 @@ block of text
 
   text2 str = {tests/block_text.txt}
 
-  {tests/block_nodes.txt}
+  {tests/block_nodes.txt} # import nodes to blocks
 
-blocks2.{tests/block_nodes.txt}
+blocks2.{tests/block_nodes.txt}  # import nodes to blocks2
 
 nums6 str[:] = ["a","bd","c3sa"]
 width float! = 23.4 cm
