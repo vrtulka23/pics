@@ -41,6 +41,8 @@ class PPML_Parser(BaseModel):
         if m:
             self.name = m.group(1)
             self._strip(m.group(1))
+            if self.ccode[0]!='':
+                raise Exception('Hello dolly')
         else:
             raise Exception("Name has an invalid format: "+self.ccode)
                     
