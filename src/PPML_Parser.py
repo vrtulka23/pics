@@ -47,11 +47,11 @@ class PPML_Parser(BaseModel):
     def get_type(self):
         types = ['bool','int','float','str','table']
         for keyword in types:
-           m=re.match('^(\s+'+keyword+')', self.ccode)
-           if m:
-               self.keyword = keyword
-               self._strip(m.group(1))
-               break
+            m=re.match('^(\s+'+keyword+')', self.ccode)
+            if m:
+                self.keyword = keyword
+                self._strip(m.group(1))
+                break
         if self.keyword is None:
             raise Exception(f"Type not recognized: {self.code}")
         
@@ -110,6 +110,8 @@ class PPML_Parser(BaseModel):
         m=re.match('^(\s+([^\s#=]+))', self.ccode)
         if m:
             self.units = m.group(2)
+            if self.units not in ['cm','m','s','W/m2']:
+                raise Exception(f"Invalid units: {self.units}")
             self._strip(m.group(1))
         
     def get_comment(self):

@@ -40,7 +40,7 @@ class ParsePPML:
                 while len(self.nodes)>0:
                     subnode = self.nodes.pop(0)
                     if '"""' in subnode.code:
-                        node.code += "\n".join(block) + subnode.code
+                        node.code += "\n".join(block) + subnode.code.lstrip()
                         break
                     else:
                         block.append( subnode.code )
@@ -190,7 +190,8 @@ class ParsePPML:
                     raise Exception(f"Node '{node.name}' has invalid dimension: dim({d})={shape} > {dim[1]}")
         else:
             # cast scalar values
-            value = node.dtype(value)
+            if value is not None:
+                value = node.dtype(value)
         return value
     def post_values(self):
         for key,node in self.nodes.items():
@@ -231,8 +232,8 @@ class ParsePPML:
         self.post_hierarchy()                # set hierarchycal naming
         self.post_modify()                   # modify node values
         self.post_values()                   # validate node values              
-
-    # Display fiinal nodes
+        
+    # Display final nodes
     def display(self):
         for node in self.nodes.values():
             print(node.name,'|',node.indent,'|',node.keyword,'|',repr(node.value),
@@ -242,3 +243,10 @@ class ParsePPML:
                 if node.options:
                     print(' |',[o.value for o in node.options], end='')
             print()
+
+    # Produce final data structure
+    def data(self):
+        data = {}
+        for name,node in self.nodes.items():
+            data[name] = node.value
+        return data
