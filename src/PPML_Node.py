@@ -41,11 +41,11 @@ class PPML_Node(BaseModel):
             self.node = PPML_Type_Comment(self.parser)
 
     def _node_import(self):
-        m=re.match(r'^([a-zA-Z0-9_.-]*){(.*)}', self.parser.ccode)
+        m=re.match(r'^([a-zA-Z0-9_.-]*\s*){(.*)}', self.parser.ccode)
         if m:
             if m.group(1):
                 self.parser.get_name()
-                self.parser.name = self.parser.name[:-1] # Remove ending dot
+                self.parser.ccode = self.parser.ccode.lstrip()
             self.parser.get_import()
             self.parser.get_comment()
             self.node = PPML_Type_Import(self.parser)
@@ -59,6 +59,7 @@ class PPML_Node(BaseModel):
             self.node = PPML_Type_Option(self.parser)
             
     def _node_group(self):
+        self.parser.get_comment()
         if self.parser.isempty():
             self.node = PPML_Type_Group(self.parser)
 

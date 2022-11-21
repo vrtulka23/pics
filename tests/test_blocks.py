@@ -93,14 +93,14 @@ def parse(code):
 
 def test_name():
     data = parse('''
-complicated.node23.NAME
+complicated.node23.NAME int = 1
     ''')
     np.testing.assert_equal(data,{
-        'complicated.node23.NAME': None,
+        'complicated.node23.NAME': 1,
     })
     with pytest.raises(Exception) as e_info:
         parse('wrong$name int = 3')
-    assert e_info.value.args[0] == "Type not recognized: wrong$name int = 3"
+    assert e_info.value.args[0] == "Name has an invalid format: wrong$name int = 3"
     
 def test_types():
     data = parse('''
@@ -202,23 +202,52 @@ block of text
         'text': '   tripple qotes # \' " \' "\nblock of text'
     })
 
+def test_hierarchy():
+    data = parse('''
+general.colonel int = 1  # namespace notation
+  captain                # group nodes
+     soldier int = 2     # lowest node in the hierarchy
+    ''')
+    np.testing.assert_equal(data,{
+        'general.colonel': 1,
+        'general.colonel.captain.soldier': 2
+    })
+    
 def test_imports():
-    pass
+    data = parse('''
+{tests/block_nodes.txt}                        # base import
+box
+  {tests/block_nodes.txt}                      # import into a node group
+basket.bag {tests/block_nodes.txt}             # import into a namespace
+blocks
+  matrix int[3][4] = {tests/block_matrix.txt}  # import a dimensional array
+  table table = {tests/block_table.txt}        # import a table
+  text str = {tests/block_text.txt}            # import large text
+    ''')
+    np.testing.assert_equal(data,{
+        'fruits': 0,
+        'vegies': 1,
+        'vegies.potato': 200.0,
+        'box.fruits': 0,
+        'box.vegies': 1,
+        'box.vegies.potato': 200.0,
+        'basket.bag.fruits': 0,
+        'basket.bag.vegies': 1,
+        'basket.bag.vegies.potato': 200.0,
+        'blocks.matrix': np.array([[4234,   34,   35,   34],[ 234,   34,  644,   43],[ 353, 2356,  234,    3]]),
+        'blocks.table.x': np.array([0.234, 1.355, 2.535, 3.255, 4.455]),
+        'blocks.table.y': np.array([0.234 , 1.43  , 2.423 , 3.2355, 4.2356]),
+        'blocks.text': 'This is a block text\nwith multiple lines\nthat will be loaded to a\nstring node.\n'
+    })
     
 if __name__ == "__main__":
     print()
     print()
-    print('\nTesting name\n')
     test_name()
-    print('\nTesting types\n')
     test_types()
-    print('\nTesting dimensions\n')
     test_dimensions()
-    print('\nTesting defined\n')
     test_defined()
-    print('\nTesting quotes\n')
     test_quotes()
-    print('\nTesting imports\n')
-    test_imports()
-    print('\nTesting blocks\n')
     test_blocks()
+    test_hierarchy()
+    test_imports()

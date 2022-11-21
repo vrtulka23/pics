@@ -41,8 +41,8 @@ class PPML_Parser(BaseModel):
         if m:
             self.name = m.group(1)
             self._strip(m.group(1))
-            if self.ccode[0]!='':
-                raise Exception('Hello dolly')
+            if not self.isempty() and self.ccode[0]!=' ':
+                raise Exception("Name has an invalid format: "+self.code)
         else:
             raise Exception("Name has an invalid format: "+self.ccode)
                     
@@ -112,7 +112,7 @@ class PPML_Parser(BaseModel):
         m=re.match('^(\s+([^\s#=]+))', self.ccode)
         if m:
             self.units = m.group(2)
-            if self.units not in ['cm','m','s','W/m2']:
+            if self.units not in ['cm','m','s','W/m2','g']:
                 raise Exception(f"Invalid units: {self.units}")
             self._strip(m.group(1))
         

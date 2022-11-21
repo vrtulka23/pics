@@ -134,7 +134,7 @@ class ParsePPML:
         self.nodes = nodes
                 
     # Remove empty nodes and lonely comments
-    def post_remove_empty(self):
+    def post_remove(self):
         nodes = []
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
@@ -154,6 +154,14 @@ class ParsePPML:
             names = names+[node.name]
             indent = indent+[node.indent]
             node.name = ".".join(names)
+        # remove group nodes
+        nodes = []
+        while len(self.nodes)>0:
+            node = self.nodes.pop(0)
+            if node.keyword == 'group':
+                continue
+            nodes.append(node)
+        self.nodes = nodes
 
     # Add modifications to nodes
     def post_modify(self):
@@ -224,7 +232,7 @@ class ParsePPML:
         self.post_symbols()                  # decode text symbols
         self.post_comments()                 # combine comments
         self.post_options()                  # collect options
-        self.post_remove_empty()             # remove empty nodes
+        self.post_remove()                   # remove empty nodes
         self.post_parse_types()              # parse special node types
 
     # Finalize all nodes
