@@ -91,11 +91,11 @@ class PPML_Type_Import(PPML_Type):
             p.initialize()
             # Add proper indent and hierarchy
             for node in p.nodes:
-                node.indent = self.indent
                 node.source = self.source
                 node.line = self.line
-                if self.name:
+                if self.name and node.indent==0:
                     node.name = self.name+'.'+node.name
+                node.indent = node.indent+self.indent
             return p.nodes
     
 class PPML_Type_Table(PPML_Type):
