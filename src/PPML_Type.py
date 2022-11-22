@@ -81,6 +81,7 @@ class PPML_Type_Float(PPML_Type):
 
 class PPML_Type_String(PPML_Type):
     keyword: str = 'str'
+    options: List[BaseModel] = []
 
 class PPML_Type_Import(PPML_Type):
     keyword: str = 'import'
