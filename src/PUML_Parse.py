@@ -13,6 +13,27 @@ class PUML_Parse:
         'C':    (1, [0,0,0,0,0,0,1,0]),  # 7
         'cd':   (1, [0,0,0,0,0,0,0,1]),  # 8
     }
+    derivates = { # 10,m,g,s,rad,K,C,cd
+        'sr':    (1,  [ 0, 0, 0, 0, 2,0, 0,0]), 	# steradian (rad2)
+        'Hz':    (1,  [ 0, 0, 0,-1, 0,0, 0,0]), 	# hertz (s-1)
+        'N':     (1,  [ 3, 1, 1,-2, 0,0, 0,0]), 	# newton (kg.m/s2)
+        'Pa':    (1,  [ 3,-1, 1,-2, 0,0, 0,0]), 	# pascal (N/m2)
+        'J':     (1,  [ 3, 2, 1,-2, 0,0, 0,0]), 	# joule (N.m)
+        'W':     (1,  [ 3, 2, 1,-3, 0,0, 0,0]), 	# watt (J/s)
+        'A':     (1,  [ 0, 0, 0,-1, 0,0, 1,0]), 	# ampere (C/s)
+        'V':     (1,  [ 3, 2, 1,-2, 0,0,-1,0]), 	# volt (J/C)
+        'F':     (1,  [-3,-2,-1, 2, 0,0, 1,0]), 	# farad (C/V)
+        'Ohm':   (1,  [ 3, 2, 1, 0, 0,0,-1,0]), 	# ohm (V/A)
+        'S':     (1,  [-3,-2,-1, 0, 0,0, 1,0]), 	# siemens (Ohm-1)
+        'Wb':    (1,  [ 3, 2, 1,-1, 0,0,-1,0]), 	# weber (V.s)
+        'T':     (1,  [ 3, 0, 1,-1, 0,0,-1,0]), 	# tesla (Wb/m2)
+        'H':     (1,  [ 3, 2, 1, 0, 0,0,-2,0]),         # henry (Wb/A)
+        'lm':    (1,  [ 0, 0, 0, 0, 2,0, 0,1]), 	# lumen (cd.sr)
+        'lx':    (1,  [ 0,-2, 0, 0, 2,0, 0,1]), 	# lux (lm/m2)
+        'Bq':    (1,  [ 0, 0, 0,-1, 0,0, 0,0]), 	# becquerel (s-1)
+        'Gy':    (1,  [ 0, 2, 0,-2, 0,0, 0,0]), 	# gray (J/kg)
+        'Sv':    (1,  [ 0, 2, 0,-2, 0,0, 0,0]), 	# sivert (J/kg)
+    }
     prefixes = {  # 10,m,g,s,rad,K,C,cd
         'Y':    (1, [24, 0,0,0,0,0,0,0]),  # yotta
         'Z':    (1, [21, 0,0,0,0,0,0,0]),  # zetta
@@ -41,27 +62,6 @@ class PUML_Parse:
         '[N_A]':   (6.0221367, [23, 0,0,0,0,0,0,0]),  # avogadro's number
         'mol':     (6.0221367, [23, 0,0,0,0,0,0,0]),  # mole
         '%':       (1,         [-2, 0,0,0,0,0,0,0]),  # percent
-    }
-    derivates = { # 10,m,g,s,rad,K,C,cd
-        'sr':    (1,  [ 0, 0, 0, 0, 2,0, 0,0]), 	# steradian (rad2)
-        'Hz':    (1,  [ 0, 0, 0,-1, 0,0, 0,0]), 	# hertz (s-1)
-        'N':     (1,  [ 3, 1, 1,-2, 0,0, 0,0]), 	# newton (kg.m/s2)
-        'Pa':    (1,  [ 3,-1, 1,-2, 0,0, 0,0]), 	# pascal (N/m2)
-        'J':     (1,  [ 3, 2, 1,-2, 0,0, 0,0]), 	# joule (N.m)
-        'W':     (1,  [ 3, 2, 1,-3, 0,0, 0,0]), 	# watt (J/s)
-        'A':     (1,  [ 0, 0, 0,-1, 0,0, 1,0]), 	# ampere (C/s)
-        'V':     (1,  [ 3, 2, 1,-2, 0,0,-1,0]), 	# volt (J/C)
-        'F':     (1,  [-3,-2,-1, 2, 0,0, 1,0]), 	# farad (C/V)
-        'Ohm':   (1,  [ 3, 2, 1, 0, 0,0,-1,0]), 	# ohm (V/A)
-        'S':     (1,  [-3,-2,-1, 0, 0,0, 1,0]), 	# siemens (Ohm-1)
-        'Wb':    (1,  [ 3, 2, 1,-1, 0,0,-1,0]), 	# weber (V.s)
-        'T':     (1,  [ 3, 0, 1,-1, 0,0,-1,0]), 	# tesla (Wb/m2)
-        'H':     (1,  [ 3, 2, 1, 0, 0,0,-2,0]),         # henry (Wb/A)
-        'lm':    (1,  [ 0, 0, 0, 0, 2,0, 0,1]), 	# lumen (cd.sr)
-        'lx':    (1,  [ 0,-2, 0, 0, 2,0, 0,1]), 	# lux (lm/m2)
-        'Bq':    (1,  [ 0, 0, 0,-1, 0,0, 0,0]), 	# becquerel (s-1)
-        'Gy':    (1,  [ 0, 2, 0,-2, 0,0, 0,0]), 	# gray (J/kg)
-        'Sv':    (1,  [ 0, 2, 0,-2, 0,0, 0,0]), 	# sivert (J/kg)
     }
     other = {
         'Cel':   (1,  [ 0, 0, 0, 0, 0,1, 0,0]), 	# degree (cel(1 K))
@@ -101,8 +101,8 @@ class PUML_Parse:
                 exp = symbol+exp
             else:
                 nbase = len(base)+1
-                unitkeys2 = [key[-nbase:] for key in unitkeys]
-                if symbol+base in unitkeys2 and not prefix:
+                ukeys = [key[-nbase:] for key in unitkeys]
+                if symbol+base in ukeys and not prefix:
                     base = symbol+base
                 else:
                     prefix = symbol+prefix
