@@ -6,24 +6,24 @@ import numpy as np
 
 def test_operations():
     with PUML_Parse() as p:
-        unit1 = (2.0, [i for i in range(1,9)])
-        unit2 = (2.0, [i for i in range(2,10)])
+        unit1 = (2.0, [i for i in range(1,1+p.nbase)])
+        unit2 = (2.0, [i for i in range(2,2+p.nbase)])
         unit3 = p.multiply(unit1, unit2)
-        unit4 = (unit1[0]*unit2[0], [unit1[1][i]+unit2[1][i] for i in range(8)])
+        unit4 = (unit1[0]*unit2[0], [unit1[1][i]+unit2[1][i] for i in range(p.nbase)])
         print(' ',unit1,'\n*',unit2,'\n=',unit3,'\n')
         assert p.equal(unit3, unit4)
 
-        unit1 = (4.0, [i+i for i in range(1,9)])
-        unit2 = (2.0, [i for i in range(1,9)])
+        unit1 = (4.0, [i+i for i in range(1,1+p.nbase)])
+        unit2 = (2.0, [i for i in range(1,1+p.nbase)])
         unit3 = p.divide(unit1, unit2)
-        unit4 = (unit1[0]/unit2[0], [unit1[1][i]-unit2[1][i] for i in range(8)])
+        unit4 = (unit1[0]/unit2[0], [unit1[1][i]-unit2[1][i] for i in range(p.nbase)])
         print(' ',unit1,'\n/',unit2,'\n=',unit3,'\n')
         assert p.equal(unit3, unit4)
 
-        unit1 = (2.0, [i for i in range(1,9)])
+        unit1 = (2.0, [i for i in range(1,1+p.nbase)])
         power = 3
         unit2 = p.power(unit1, power)
-        unit3 = (unit1[0]**power, [unit1[1][i]*power for i in range(8)])
+        unit3 = (unit1[0]**power, [unit1[1][i]*power for i in range(p.nbase)])
         print(' ',unit1,'\n^',power,'\n=',unit3)
         assert p.equal(unit2, unit3)
         
@@ -46,17 +46,19 @@ def test_expressions():
         newton = p.multiply(p.prefixes['k'],p.base['g'])
         newton = p.multiply(newton,p.base['m'])
         newton = p.divide(newton,p.power(p.base['s'],2))
-        assert p.equal(newton, p.units['N'])
-        print('N=kg.m/s2',newton)
+        units = {
+            'N': 'kg.m/s2',
+            'Pa': 'kg/(s2.m)',
+            'J': '(kg.m2)/s2',
+            'W': 'kg.(m2/s3)',
+            'V': 'kg.(m2/(s2.C))',
+        }
+        for name, expr in units.items():
+            unit1 = p.units[name]
+            unit2 = p.expression(expr)
+            print("%-03s %-15s"%(name,expr), unit1)
+            assert p.equal(unit1, unit2)
         
-        #p.expression('km2/W')
-        #p.expression('MJ.s')
-        #print(p.expression('kg.m.s-2'))
-        #print(p.expression('kg.m/s2'))
-        #print(p.expression('(kg.(m))/(s2)'))
-        #p.expression('kg.m2/s2')
-        pass
-
 def test_derived_si():
     units = {
         'sr':  'rad2',
