@@ -132,7 +132,7 @@ anticommutator str = '{a,b}'      # this is not an import
       })
     with pytest.raises(Exception) as e_info:
         parse('name str = Johannes Brahms')
-    assert e_info.value.args[0] == "Invalid units: Brahms"
+    assert e_info.value.args[0] == "Unit prefix 'Brahm' is not available in: Brahms"
     
 def test_blocks():
     data = parse('''
@@ -205,14 +205,23 @@ blocks                                         # block imports into a group node
 
 def test_mods():
     data = parse('''
-size float = 70 cm
-size float = 80 cm
-size = 90 cm
-size = 100
-size = 1 m
+size float = 70 cm    # definition
+size float = 80 cm    # modifications of value
+size = 90 cm          # omitting datatype
+size = 100            # omitting units
+size = 1 m            # using different prefix
+
+energy float = 1.23 J # definition
+energy = 2.2 erg      # switching from SI to cgs
+energy = 2.2 g.cm2/s2 # using unit expressions
+
+angle float = 1.57079633 rad    # using numbers 
+angle = 30 deg                  # definition
     ''')
     np.testing.assert_equal(data,{
-        'size': 100
+        'size':   100,
+        'energy': 2.2e-7,
+        'angle':  0.5235987,
     })  
         
 if __name__ == "__main__":

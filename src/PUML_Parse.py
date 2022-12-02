@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import List
 import numpy as np
 import re
+from math import isclose
 
 class PUML_Unit(BaseModel):
     num: float
@@ -57,9 +58,9 @@ class PUML_Parse:
         'erg':   PUML_Unit(1.0,  [ 2, 1,-2, 0, 0, 0, 0, 0,-4], 'dyn.cm',  'erg'      ),
         'G':     PUML_Unit(1.0,  [ 0, 1,-1, 0,-1, 0, 0, 0,-1], '10*-4.T', 'Gauss'    ),
         # other derived units
-        'deg':   PUML_Unit(57.29577951308232, [ 0, 0, 0, 0, 0,0,0,1,  0],
-                           'rad.180/[pi]', 'degree'       ),
-        'eV':    PUML_Unit(1.60217733,        [ 2, 1,-2, 0, 0,0,0,0,-16],
+        'deg':   PUML_Unit(0.01745329, [ 0, 0, 0, 0, 0,0,0,1,  0],
+                           '2.[pi].rad/360', 'degree'       ),
+        'eV':    PUML_Unit(1.60217733, [ 2, 1,-2, 0, 0,0,0,0,-16],
                            '[e].V',        'electronvolt'),
         # natural units                                           
         '[e]':   PUML_Unit(1.60217733,        [ 0, 0, 0, 0, 1, 0, 0, 0,-19],
@@ -108,7 +109,7 @@ class PUML_Parse:
         pass
     
     def equal(self, unit1, unit2):
-        if unit1.num!=unit2.num:
+        if not isclose(unit1.num, unit2.num, rel_tol=1e-6):
             return False
         if unit1.base!=unit2.base:
             return False

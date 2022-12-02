@@ -53,10 +53,12 @@ def test_units():
                 p.multiply(p.prefixes['u'],p.units['Ohm']),
                 3
             ),
+            '[pi]':  p.units['[pi]'],                            # number pi
+            '[e]':   p.units['[e]'],                             # electronvolt
         }
         for name, unit2 in units.items():
             unit1 = p.unit(name)
-            print("%-05s"%name, f"{unit1.num} {unit1.base}")
+            print("%-05s"%name, f"{unit1.num:.03e} {unit1.base}")
             assert p.equal(unit1, unit2)            
 
 def test_expressions():
@@ -73,7 +75,7 @@ def test_expressions():
             'V':   'kg.(m2/(s2.C))', # nested parentheses
             'Ohm': '((kg.m2)/s)/C2', # multiple fractions with parentheses
             'S':   's.C2/kg/m2',     # multiple fractions without parentheses
-            'deg': 'rad.180/[pi]',   # numbers and constants
+            'deg': '2.[pi].rad/360', # numbers and constants
         }
         for name, expr in units.items():
             unit1 = p.units[name]
@@ -94,15 +96,16 @@ def test_derivates():
             
 def test_convert():
     examples = [
-        (1, 'm',   1e-3,              'km'),
-        (1, 'kJ',  1e3,               'J'),
-        (1, 'eV',  1.60217733e-4,     'fJ'),
-        (1, 'erg', 624.1506363094028, 'GeV'),
+        (1, 'm',   1e-3,          'km'),
+        (1, 'kJ',  1e3,           'J'),
+        (1, 'eV',  1.6021773e-4,  'fJ'),
+        (1, 'erg', 624.150636,    'GeV'),
+        (1, 'deg', 0.01745329,    'rad'),
     ]
     with PUML_Parse() as p:
         for e in examples:
             print(f"{e[0]} {e[1]:4s} = {e[2]:.4f} {e[3]}")
-            assert p.convert(e[0], e[1], e[3]) == e[2]
+            assert isclose(p.convert(e[0], e[1], e[3]), e[2], rel_tol=1e-6)
             
 if __name__ == "__main__":
     # Specify wich test to run

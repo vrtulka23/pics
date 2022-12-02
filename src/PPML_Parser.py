@@ -2,6 +2,8 @@ from typing import List
 from pydantic import BaseModel
 import re
 
+from PUML_Parse import *
+
 class PPML_Parser(BaseModel):
     code: str 
     ccode: str
@@ -112,8 +114,8 @@ class PPML_Parser(BaseModel):
         m=re.match('^(\s+([^\s#=]+))', self.ccode)
         if m:
             self.units = m.group(2)
-            if self.units not in ['cm','m','s','W/m2','g']:
-                raise Exception(f"Invalid units: {self.units}")
+            with PUML_Parse() as p:
+                p.expression(self.units)
             self._strip(m.group(1))
         
     def get_comment(self):
