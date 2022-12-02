@@ -10,7 +10,7 @@ def test_base():
         unit = PUML_Unit(1.0, [0 for i in range(p.nbase)])
         for base in p.base.values():
             unit = p.multiply(unit,base)
-        print('Base:',unit)
+        print(f"Base: {unit.num} {unit.base}")
         assert p.equal(unit, PUML_Unit(1.0, [1 for i in range(p.nbase)]))
 
 def test_operations():
@@ -19,22 +19,24 @@ def test_operations():
         unit1 = PUML_Unit(2.0, [i for i in range(1,1+p.nbase)])
         unit2 = PUML_Unit(2.0, [i for i in range(2,2+p.nbase)])
         unit3 = p.multiply(unit1, unit2)
-        unit4 = PUML_Unit(unit1[0]*unit2[0], [unit1[1][i]+unit2[1][i] for i in range(p.nbase)])
-        print(' ',unit1,'\n*',unit2,'\n=',unit3,'\n')
+        unit4 = PUML_Unit(unit1.num*unit2.num,
+                          [unit1.base[i]+unit2.base[i] for i in range(p.nbase)])
+        print(f"  {unit1.num} {unit1.base}\n* {unit2.num} {unit2.base}\n= {unit3.num} {unit3.base}\n")
         assert p.equal(unit3, unit4)
         # Division
         unit1 = PUML_Unit(4.0, [i+i for i in range(1,1+p.nbase)])
         unit2 = PUML_Unit(2.0, [i for i in range(1,1+p.nbase)])
         unit3 = p.divide(unit1, unit2)
-        unit4 = PUML_Unit(unit1[0]/unit2[0], [unit1[1][i]-unit2[1][i] for i in range(p.nbase)])
-        print(' ',unit1,'\n/',unit2,'\n=',unit3,'\n')
+        unit4 = PUML_Unit(unit1.num/unit2.num,
+                          [unit1.base[i]-unit2.base[i] for i in range(p.nbase)])
+        print(f"  {unit1.num} {unit1.base}\n/ {unit2.num} {unit2.base}\n= {unit3.num} {unit3.base}\n")
         assert p.equal(unit3, unit4)
         # Power
         unit1 = PUML_Unit(2.0, [i for i in range(1,1+p.nbase)])
         power = 3
         unit2 = p.power(unit1, power)
-        unit3 = PUML_Unit(unit1[0]**power, [unit1[1][i]*power for i in range(p.nbase)])
-        print(' ',unit1,'\n^',power,'\n=',unit3)
+        unit3 = PUML_Unit(unit1.num**power, [unit1.base[i]*power for i in range(p.nbase)])
+        print(f"  {unit1.num} {unit1.base}\n^ {power}\n= {unit3.num} {unit3.base}")
         assert p.equal(unit2, unit3)
         
 def test_units():
@@ -54,7 +56,7 @@ def test_units():
         }
         for name, unit2 in units.items():
             unit1 = p.unit(name)
-            print("%-05s"%name, unit1)
+            print("%-05s"%name, f"{unit1.num} {unit1.base}")
             assert p.equal(unit1, unit2)            
 
 def test_expressions():
@@ -76,7 +78,7 @@ def test_expressions():
         for name, expr in units.items():
             unit1 = p.units[name]
             unit2 = p.expression(expr)
-            print("%-03s %-15s"%(name,expr), unit1)
+            print("%-03s %-15s"%(name,expr), "%.03e"%unit1.num, unit1.base)
             assert p.equal(unit1, unit2)        
 
 def test_derivates():
@@ -86,22 +88,10 @@ def test_derivates():
             if not unit.definition:
                 continue
             expr = p.expression(unit.definition)
-            print("%-13s"%unit.name, "%-3s"%sign, "%-12s"%unit.definition, expr)
+            print("%-13s"%unit.name, "%-3s"%sign, "%-12s"%unit.definition,
+                  "%.03e"%expr.num, expr.base)
             assert p.equal(expr, unit)            
             
-def test_derived_cgs():
-    units = {
-        'dyn': 'g.cm/s2',
-        'erg': 'dyn.cm',
-        'G':   '10*-4.T',
-    }
-    with PUML_Parse() as p:
-        for name, expr in units.items():
-            unit1 = p.expression(expr)
-            unit2 = p.units[name]
-            print("%-03s"%name, unit1)
-            assert p.equal(unit1, unit2)            
-
 def test_convert():
     examples = [
         (1, 'm',   1e-3,              'km'),
@@ -113,8 +103,6 @@ def test_convert():
         for e in examples:
             print(f"{e[0]} {e[1]:4s} = {e[2]:.4f} {e[3]}")
             assert p.convert(e[0], e[1], e[3]) == e[2]
-
-        print(p.expression('rad.180/[pi]'))
             
 if __name__ == "__main__":
     # Specify wich test to run
