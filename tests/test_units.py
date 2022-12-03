@@ -1,46 +1,47 @@
 import sys
-sys.path.insert(1, '/Users/perseus/Projects/pics/src')
-from PUML_Parse import *
 import pytest
 import numpy as np
 
+sys.path.insert(1, '/Users/perseus/Projects/pics/src')
+from PPML_Converter import *
+
 def test_base():
-    with PUML_Parse() as p:
+    with PPML_Converter() as p:
         # Closure of base units
-        unit = PUML_Unit(1.0, [0 for i in range(p.nbase)])
+        unit = PPML_Unit(1.0, [0 for i in range(p.nbase)])
         for base in p.base.values():
             unit = p.multiply(unit,base)
         print(f"Base: {unit.num} {unit.base}")
-        assert p.equal(unit, PUML_Unit(1.0, [1 for i in range(p.nbase)]))
+        assert p.equal(unit, PPML_Unit(1.0, [1 for i in range(p.nbase)]))
 
 def test_operations():
-    with PUML_Parse() as p:
+    with PPML_Converter() as p:
         # Multiplication
-        unit1 = PUML_Unit(2.0, [i for i in range(1,1+p.nbase)])
-        unit2 = PUML_Unit(2.0, [i for i in range(2,2+p.nbase)])
+        unit1 = PPML_Unit(2.0, [i for i in range(1,1+p.nbase)])
+        unit2 = PPML_Unit(2.0, [i for i in range(2,2+p.nbase)])
         unit3 = p.multiply(unit1, unit2)
-        unit4 = PUML_Unit(unit1.num*unit2.num,
+        unit4 = PPML_Unit(unit1.num*unit2.num,
                           [unit1.base[i]+unit2.base[i] for i in range(p.nbase)])
         print(f"  {unit1.num} {unit1.base}\n* {unit2.num} {unit2.base}\n= {unit3.num} {unit3.base}\n")
         assert p.equal(unit3, unit4)
         # Division
-        unit1 = PUML_Unit(4.0, [i+i for i in range(1,1+p.nbase)])
-        unit2 = PUML_Unit(2.0, [i for i in range(1,1+p.nbase)])
+        unit1 = PPML_Unit(4.0, [i+i for i in range(1,1+p.nbase)])
+        unit2 = PPML_Unit(2.0, [i for i in range(1,1+p.nbase)])
         unit3 = p.divide(unit1, unit2)
-        unit4 = PUML_Unit(unit1.num/unit2.num,
+        unit4 = PPML_Unit(unit1.num/unit2.num,
                           [unit1.base[i]-unit2.base[i] for i in range(p.nbase)])
         print(f"  {unit1.num} {unit1.base}\n/ {unit2.num} {unit2.base}\n= {unit3.num} {unit3.base}\n")
         assert p.equal(unit3, unit4)
         # Power
-        unit1 = PUML_Unit(2.0, [i for i in range(1,1+p.nbase)])
+        unit1 = PPML_Unit(2.0, [i for i in range(1,1+p.nbase)])
         power = 3
         unit2 = p.power(unit1, power)
-        unit3 = PUML_Unit(unit1.num**power, [unit1.base[i]*power for i in range(p.nbase)])
+        unit3 = PPML_Unit(unit1.num**power, [unit1.base[i]*power for i in range(p.nbase)])
         print(f"  {unit1.num} {unit1.base}\n^ {power}\n= {unit3.num} {unit3.base}")
         assert p.equal(unit2, unit3)
         
 def test_units():
-    with PUML_Parse() as p:
+    with PPML_Converter() as p:
         units = {
             'm':     p.units['m'],                               # just a unit                      
             'm-2':   p.power(p.units['m'],-2),                   # exponents
@@ -62,7 +63,7 @@ def test_units():
             assert p.equal(unit1, unit2)            
 
 def test_expressions():
-    with PUML_Parse() as p:
+    with PPML_Converter() as p:
         newton = p.multiply(p.prefixes['k'],p.base['g'])
         newton = p.multiply(newton,p.base['m'])
         newton = p.divide(newton,p.power(p.base['s'],2))
@@ -85,14 +86,18 @@ def test_expressions():
 
 def test_derivates():
     # Check if derived units are correct
-    with PUML_Parse() as p:
+    with PPML_Converter() as p:
         for sign, unit in p.derivates.items():
             if not unit.definition:
                 continue
             expr = p.expression(unit.definition)
-            print("%-13s"%unit.name, "%-3s"%sign, "%-12s"%unit.definition,
-                  "%.03e"%expr.num, expr.base)
-            assert p.equal(expr, unit)            
+            print("%-13s"%unit.name, "%-4s"%sign, "%-15s"%unit.definition,
+                  "%.06f"%expr.num, expr.base)
+            equal = p.equal(expr, unit)
+            if not equal:
+                print(f"Expr.: {expr.num:.6f} {expr.base}")
+                print(f"Unit:  {unit.num:.6f} {unit.base}")
+            assert equal
             
 def test_convert():
     examples = [
@@ -102,7 +107,7 @@ def test_convert():
         (1, 'erg', 624.150636,    'GeV'),
         (1, 'deg', 0.01745329,    'rad'),
     ]
-    with PUML_Parse() as p:
+    with PPML_Converter() as p:
         for e in examples:
             print(f"{e[0]} {e[1]:4s} = {e[2]:.4f} {e[3]}")
             assert isclose(p.convert(e[0], e[1], e[3]), e[2], rel_tol=1e-6)

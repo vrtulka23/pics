@@ -4,7 +4,7 @@ import os
 from typing import List
 
 from PPML_Node import *
-from PUML_Parse import *
+from PPML_Converter import *
 
 class ParsePPML:
     lines: str
@@ -212,7 +212,7 @@ class ParsePPML:
                     value = self._post_cast(mod, node)
                     # convert mod units to node units if necessary
                     if node.units and mod.units and node.units!=mod.units:
-                        with PUML_Parse() as p:
+                        with PPML_Converter() as p:
                             value = p.convert(value, mod.units, node.units)
                     node.value = value
             # parse options

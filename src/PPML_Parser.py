@@ -2,7 +2,7 @@ from typing import List
 from pydantic import BaseModel
 import re
 
-from PUML_Parse import *
+from PPML_Converter import *
 
 class PPML_Parser(BaseModel):
     code: str 
@@ -33,13 +33,13 @@ class PPML_Parser(BaseModel):
         return self.ccode.strip()==''
 
     def get_indent(self):
-        m=re.match('^(\s*)',self.ccode)
+        m=re.match(r'^(\s*)',self.ccode)
         if m:
             self.indent = len(m.group(1))
             self._strip(m.group(1))
             
     def get_name(self):
-        m=re.match('^([a-zA-Z0-9_.-]+)', self.ccode)
+        m=re.match(r'^([a-zA-Z0-9_.-]+)', self.ccode)
         if m:
             self.name = m.group(1)
             self._strip(m.group(1))
@@ -51,7 +51,7 @@ class PPML_Parser(BaseModel):
     def get_type(self):
         types = ['bool','int','float','str','table']
         for keyword in types:
-            m=re.match('^(\s+'+keyword+')', self.ccode)
+            m=re.match(r'^(\s+'+keyword+')', self.ccode)
             if m:
                 self.keyword = keyword
                 self._strip(m.group(1))
@@ -65,7 +65,7 @@ class PPML_Parser(BaseModel):
             self._strip('!')
         
     def get_dimension(self):
-        pattern = '^(\[([0-9:]+)\])'
+        pattern = r'^(\[([0-9:]+)\])'
         m=re.match(pattern, self.ccode)
         if m: self.dimension = []
         while m:
@@ -81,7 +81,7 @@ class PPML_Parser(BaseModel):
             m=re.match(pattern, self.ccode)
 
     def get_import(self):
-        m=re.match('^({(.*)})', self.ccode)
+        m=re.match(r'^({(.*)})', self.ccode)
         if m:
             with open(m.group(2),'r') as f:
                 self.source = m.group(2)
@@ -90,7 +90,7 @@ class PPML_Parser(BaseModel):
             
     def get_value(self):
         # Remove equal sign
-        m=re.match('^(\s*=\s*)', self.ccode)
+        m=re.match(r'^(\s*=\s*)', self.ccode)
         if m:
             self._strip(m.group(1))
         else:
@@ -100,7 +100,7 @@ class PPML_Parser(BaseModel):
         if self.value:
             return
         # If not block value, parse standard text value
-        m=re.match('^(("""(.*)"""|"(.*)"|\'(.*)\'|([^# ]+)))', self.ccode)
+        m=re.match(r'^(("""(.*)"""|"(.*)"|\'(.*)\'|([^# ]+)))', self.ccode)
         if m:
             # Reduce matches
             results = [x for x in m.groups()[1:] if x is not None]
@@ -111,15 +111,15 @@ class PPML_Parser(BaseModel):
             raise Exception("Value has to be set after equal sign")
         
     def get_units(self):
-        m=re.match('^(\s+([^\s#=]+))', self.ccode)
+        m=re.match(r'^(\s+([^\s#=]+))', self.ccode)
         if m:
             self.units = m.group(2)
-            with PUML_Parse() as p:
+            with PPML_Converter() as p:
                 p.expression(self.units)
             self._strip(m.group(1))
         
     def get_comment(self):
-        m=re.match('^(\s*#\s*(.*))$', self.ccode)
+        m=re.match(r'^(\s*#\s*(.*))$', self.ccode)
         if m:
             self.comment = m.group(2)
             self._strip(m.group(1))
