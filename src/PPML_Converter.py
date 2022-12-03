@@ -1,104 +1,30 @@
-from pydantic import BaseModel
-from typing import List
 import numpy as np
 import re
 from math import isclose
 
-class PPML_Unit(BaseModel):
-    num: float
-    base: List[int]
-    definition: str = None
-    name: str = None
-
-    def __init__(self,num,base,definition=None,name=None,**kwargs):
-        kwargs['num'] = num
-        kwargs['base'] = base
-        kwargs['definition'] = definition
-        kwargs['name'] = name
-        super().__init__(**kwargs)
-
+from PPML_Unit import *
+from PPML_UnitList import *
+        
 class PPML_Converter:
 
-    base = {
-        # physical units
-        'm':    PPML_Unit(1.0, [1,0,0,0,0,0,0,0,0]),  # 1
-        'g':    PPML_Unit(1.0, [0,1,0,0,0,0,0,0,0]),  # 2
-        's':    PPML_Unit(1.0, [0,0,1,0,0,0,0,0,0]),  # 3
-        'K':    PPML_Unit(1.0, [0,0,0,1,0,0,0,0,0]),  # 4
-        'C':    PPML_Unit(1.0, [0,0,0,0,1,0,0,0,0]),  # 5
-        'cd':   PPML_Unit(1.0, [0,0,0,0,0,1,0,0,0]),  # 6
-        # numerical units
-        'mol':  PPML_Unit(1.0, [0,0,0,0,0,0,1,0,0]),  # 7
-        'rad':  PPML_Unit(1.0, [0,0,0,0,0,0,0,1,0]),  # 8
-        '1e':   PPML_Unit(1.0, [0,0,0,0,0,0,0,0,1]),  # 9
-    }
-    derivates = { # m,g,s,K,C,cd,mol,rad,10
-        # SI units
-        'sr':    PPML_Unit(1.0,  [ 0, 0, 0, 0, 0, 0, 0, 2, 0], 'rad2',    'steradian'),
-        'Hz':    PPML_Unit(1.0,  [ 0, 0,-1, 0, 0, 0, 0, 0, 0], 's-1',     'hertz'    ),
-        'N':     PPML_Unit(1.0,  [ 1, 1,-2, 0, 0, 0, 0, 0, 3], 'kg*m/s2', 'newton'   ),
-        'Pa':    PPML_Unit(1.0,  [-1, 1,-2, 0, 0, 0, 0, 0, 3], 'N/m2',    'pascal'   ),
-        'J':     PPML_Unit(1.0,  [ 2, 1,-2, 0, 0, 0, 0, 0, 3], 'N*m',     'joule'    ),
-        'W':     PPML_Unit(1.0,  [ 2, 1,-3, 0, 0, 0, 0, 0, 3], 'J/s',     'watt'     ),
-        'A':     PPML_Unit(1.0,  [ 0, 0,-1, 0, 1, 0, 0, 0, 0], 'C/s',     'ampere'   ),
-        'V':     PPML_Unit(1.0,  [ 2, 1,-2, 0,-1, 0, 0, 0, 3], 'J/C',     'volt'     ),
-        'F':     PPML_Unit(1.0,  [-2,-1, 2, 0, 2, 0, 0, 0,-3], 'C/V',     'farad'    ),
-        'Ohm':   PPML_Unit(1.0,  [ 2, 1,-1, 0,-2, 0, 0, 0, 3], 'V/A',     'ohm'      ),
-        'S':     PPML_Unit(1.0,  [-2,-1, 1, 0, 2, 0, 0, 0,-3], 'Ohm-1',   'siemens'  ),
-        'Wb':    PPML_Unit(1.0,  [ 2, 1,-1, 0,-1, 0, 0, 0, 3], 'V*s',     'weber'    ),
-        'T':     PPML_Unit(1.0,  [ 0, 1,-1, 0,-1, 0, 0, 0, 3], 'Wb/m2',   'tesla'    ),
-        'H':     PPML_Unit(1.0,  [ 2, 1, 0, 0,-2, 0, 0, 0, 3], 'Wb/A',    'henry'    ),
-        'lm':    PPML_Unit(1.0,  [ 0, 0, 0, 0, 0, 1, 0, 2, 0], 'cd*sr',   'lumen'    ),
-        'lx':    PPML_Unit(1.0,  [-2, 0, 0, 0, 0, 1, 0, 2, 0], 'lm/m2',   'lux'      ),
-        'Bq':    PPML_Unit(1.0,  [ 0, 0,-1, 0, 0, 0, 0, 0, 0], 's-1',     'becquerel'),
-        'Gy':    PPML_Unit(1.0,  [ 2, 0,-2, 0, 0, 0, 0, 0, 0], 'J/kg',    'gray'     ),
-        'Sv':    PPML_Unit(1.0,  [ 2, 0,-2, 0, 0, 0, 0, 0, 0], 'J/kg',    'sivert'   ),
-        # CGS units                          
-        'dyn':   PPML_Unit(1.0,  [ 1, 1,-2, 0, 0, 0, 0, 0,-2], 'g*cm/s2', 'dyne'     ),
-        'erg':   PPML_Unit(1.0,  [ 2, 1,-2, 0, 0, 0, 0, 0,-4], 'dyn*cm',  'erg'      ),
-        'G':     PPML_Unit(1.0,  [ 0, 1,-1, 0,-1, 0, 0, 0,-1], '1e-4*T',  'Gauss'    ),
-        # other derived units
-        'deg':   PPML_Unit(1.745329,   [ 0, 0, 0, 0, 0,0,0,1, -2],
-                           '2*[pi]*rad/360', 'degree'       ),
-        'eV':    PPML_Unit(1.60217733, [ 2, 1,-2, 0, 0,0,0,0,-16],
-                           '[e]*V',        'electronvolt'),
-        # natural units                                           
-        '[e]':   PPML_Unit(1.60217733,        [ 0, 0, 0, 0, 1, 0, 0, 0,-19],
-                           None, 'elementary charge'),
-        # dimensionless units
-        '[pi]':    PPML_Unit(np.pi,      [0,0,0,0,0,0,0,0, 0], '3.141593', 'pi'),
-        '[euler]': PPML_Unit(np.e,       [0,0,0,0,0,0,0,0, 0], '2.718282', "Euler's num."),
-        '[N_A]':   PPML_Unit(6.0221367,  [0,0,0,0,0,0,0,0,23], '6.022137e23', "Avogadro's num."),
-    }
-    prefixes = {  
-        'Y':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0, 24]),  # yotta
-        'Z':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0, 21]),  # zetta
-        'E':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0, 18]),  # exa
-        'P':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0, 15]),  # peta
-        'T':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0, 12]),  # tera
-        'G':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0,  9]),  # giga
-        'M':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0,  6]),  # mega
-        'k':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0,  3]),  # kilo
-        'h':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0,  2]),  # hectoh
-        'da':   PPML_Unit(1.0, [0,0,0,0,0,0,0,0,  1]),  # deka
-        'd':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0, -1]),  # deci
-        'c':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0, -2]),  # centi
-        'm':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0, -3]),  # milli
-        'u':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0, -6]),  # micro
-        'n':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0, -9]),  # nano
-        'p':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0,-12]),  # pico
-        'f':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0,-15]),  # femto
-        'a':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0,-18]),  # atto
-        'z':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0,-21]),  # zepto
-        'y':    PPML_Unit(1.0, [0,0,0,0,0,0,0,0,-24]),  # yocto
-    }
-    other = {
-        'Cel':   PPML_Unit(1.0,  [0, 0, 0, 1, 0, 0, 0, 0, 0]), 	# degree (cel(1 K))
-    }
-
+    base: dict = {}
+    prefixes: dict = {}
+    derivates: dict = {}
+    units: dict = {}
+    
     def __init__(self):
-        self.nbase = len(self.base)
+        self.nbase = len(PPML_UnitList_Base)
         self.npbase = self.nbase-3
+        # Load unit lists into dictionaries
+        for unit in PPML_UnitList_Base:
+            self.base[unit[2]]      = PPML_Unit(unit[0], unit[1],
+                                                symbol=unit[2], dfn=unit[3], name=unit[4])
+        for unit in PPML_UnitList_Prefixes:
+            self.prefixes[unit[2]]  = PPML_Unit(unit[0], unit[1],
+                                                symbol=unit[2], dfn=unit[3], name=unit[4])
+        for unit in PPML_UnitList_Derivates:
+            self.derivates[unit[2]] = PPML_Unit(unit[0], unit[1],
+                                                symbol=unit[2], dfn=unit[3], name=unit[4])
         self.units = self.base | self.derivates
 
     def __enter__(self):

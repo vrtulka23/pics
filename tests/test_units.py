@@ -88,10 +88,10 @@ def test_derivates():
     # Check if derived units are correct
     with PPML_Converter() as p:
         for sign, unit in p.derivates.items():
-            if not unit.definition:
+            if not unit.dfn:
                 continue
-            expr = p.expression(unit.definition)
-            print("%-13s"%unit.name, "%-4s"%sign, "%-15s"%unit.definition,
+            expr = p.expression(unit.dfn)
+            print("%-13s"%unit.name, "%-4s"%sign, "%-15s"%unit.dfn,
                   "%.06f"%expr.num, expr.base)
             equal = p.equal(expr, unit)
             if not equal:
