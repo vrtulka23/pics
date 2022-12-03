@@ -17,14 +17,17 @@ class PPML_Converter:
         self.npbase = self.nbase-3
         # Load unit lists into dictionaries
         for unit in PPML_UnitList_Base:
-            self.base[unit[2]]      = PPML_Unit(unit[0], unit[1],
-                                                symbol=unit[2], dfn=unit[3], name=unit[4])
+            self.base[unit[2]] = PPML_Unit(
+                unit[0], unit[1], symbol=unit[2], dfn=unit[3], name=unit[4]
+            )
         for unit in PPML_UnitList_Prefixes:
-            self.prefixes[unit[2]]  = PPML_Unit(unit[0], unit[1],
-                                                symbol=unit[2], dfn=unit[3], name=unit[4])
+            self.prefixes[unit[2]] = PPML_Unit(
+                unit[0], unit[1], symbol=unit[2], dfn=unit[3], name=unit[4]
+            )
         for unit in PPML_UnitList_Derivates:
-            self.derivates[unit[2]] = PPML_Unit(unit[0], unit[1],
-                                                symbol=unit[2], dfn=unit[3], name=unit[4])
+            self.derivates[unit[2]] = PPML_Unit(
+                unit[0], unit[1], symbol=unit[2], dfn=unit[3], name=unit[4]
+            )
         self.units = self.base | self.derivates
 
     def __enter__(self):
@@ -65,7 +68,7 @@ class PPML_Converter:
             unit.num = number/10**exp
             unit.base = [b*exp for b in unit.base]
             return unit
-        # parse 
+        # parse unit
         string_bak = string
         exp, base, prefix = '', '', ''
         symbol, string = string[-1], ' '+string[:-1]
