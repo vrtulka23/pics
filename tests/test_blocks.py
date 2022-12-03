@@ -213,7 +213,7 @@ size = 1 m            # using different prefix
 
 energy float = 1.23 J # definition
 energy = 2.2 erg      # switching from SI to cgs
-energy = 2.2 g.cm2/s2 # using unit expressions
+energy = 2.2 g*cm2/s2 # using unit expressions
 
 angle float = 1.57079633 rad    # using numbers 
 angle = 30 deg                  # definition

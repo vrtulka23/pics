@@ -67,15 +67,15 @@ def test_expressions():
         newton = p.multiply(newton,p.base['m'])
         newton = p.divide(newton,p.power(p.base['s'],2))
         units = {
-            'N':   'kg.m/s2',        # basic operations
-            'Pa':  'kg/(s2.m)',      # parentheses in denominator
-            'J':   '(kg.m2)/s2',     # parentheses in nominator
-            'W':   'kg.(m2/s3)',     # fraction in parentheses
-            'A':   'C.s-1',          # negative exponents
-            'V':   'kg.(m2/(s2.C))', # nested parentheses
-            'Ohm': '((kg.m2)/s)/C2', # multiple fractions with parentheses
-            'S':   's.C2/kg/m2',     # multiple fractions without parentheses
-            'deg': '2.[pi].rad/360', # numbers and constants
+            'N':   'kg*m/s2',        # basic operations
+            'Pa':  'kg/(s2*m)',      # parentheses in denominator
+            'J':   '(kg*m2)/s2',     # parentheses in nominator
+            'W':   'kg*(m2/s3)',     # fraction in parentheses
+            'A':   'C*s-1',          # negative exponents
+            'V':   'kg*(m2/(s2*C))', # nested parentheses
+            'Ohm': '((kg*m2)/s)/C2', # multiple fractions with parentheses
+            'S':   's*C2/kg/m2',     # multiple fractions without parentheses
+            'deg': '2*[pi]*rad/360', # numbers and constants
         }
         for name, expr in units.items():
             unit1 = p.units[name]

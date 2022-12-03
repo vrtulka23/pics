@@ -30,38 +30,38 @@ class PUML_Parse:
         # numerical units
         'mol':  PUML_Unit(1.0, [0,0,0,0,0,0,1,0,0]),  # 7
         'rad':  PUML_Unit(1.0, [0,0,0,0,0,0,0,1,0]),  # 8
-        '10*':  PUML_Unit(1.0, [0,0,0,0,0,0,0,0,1]),  # 9
+        '10^':  PUML_Unit(1.0, [0,0,0,0,0,0,0,0,1]),  # 9
     }
     derivates = { # m,g,s,K,C,cd,mol,rad,10
         # SI units
         'sr':    PUML_Unit(1.0,  [ 0, 0, 0, 0, 0, 0, 0, 2, 0], 'rad2',    'steradian'),
         'Hz':    PUML_Unit(1.0,  [ 0, 0,-1, 0, 0, 0, 0, 0, 0], 's-1',     'hertz'    ),
-        'N':     PUML_Unit(1.0,  [ 1, 1,-2, 0, 0, 0, 0, 0, 3], 'kg.m/s2', 'newton'   ),
+        'N':     PUML_Unit(1.0,  [ 1, 1,-2, 0, 0, 0, 0, 0, 3], 'kg*m/s2', 'newton'   ),
         'Pa':    PUML_Unit(1.0,  [-1, 1,-2, 0, 0, 0, 0, 0, 3], 'N/m2',    'pascal'   ),
-        'J':     PUML_Unit(1.0,  [ 2, 1,-2, 0, 0, 0, 0, 0, 3], 'N.m',     'joule'    ),
+        'J':     PUML_Unit(1.0,  [ 2, 1,-2, 0, 0, 0, 0, 0, 3], 'N*m',     'joule'    ),
         'W':     PUML_Unit(1.0,  [ 2, 1,-3, 0, 0, 0, 0, 0, 3], 'J/s',     'watt'     ),
         'A':     PUML_Unit(1.0,  [ 0, 0,-1, 0, 1, 0, 0, 0, 0], 'C/s',     'ampere'   ),
         'V':     PUML_Unit(1.0,  [ 2, 1,-2, 0,-1, 0, 0, 0, 3], 'J/C',     'volt'     ),
         'F':     PUML_Unit(1.0,  [-2,-1, 2, 0, 2, 0, 0, 0,-3], 'C/V',     'farad'    ),
         'Ohm':   PUML_Unit(1.0,  [ 2, 1,-1, 0,-2, 0, 0, 0, 3], 'V/A',     'ohm'      ),
         'S':     PUML_Unit(1.0,  [-2,-1, 1, 0, 2, 0, 0, 0,-3], 'Ohm-1',   'siemens'  ),
-        'Wb':    PUML_Unit(1.0,  [ 2, 1,-1, 0,-1, 0, 0, 0, 3], 'V.s',     'weber'    ),
+        'Wb':    PUML_Unit(1.0,  [ 2, 1,-1, 0,-1, 0, 0, 0, 3], 'V*s',     'weber'    ),
         'T':     PUML_Unit(1.0,  [ 0, 1,-1, 0,-1, 0, 0, 0, 3], 'Wb/m2',   'tesla'    ),
         'H':     PUML_Unit(1.0,  [ 2, 1, 0, 0,-2, 0, 0, 0, 3], 'Wb/A',    'henry'    ),
-        'lm':    PUML_Unit(1.0,  [ 0, 0, 0, 0, 0, 1, 0, 2, 0], 'cd.sr',   'lumen'    ),
+        'lm':    PUML_Unit(1.0,  [ 0, 0, 0, 0, 0, 1, 0, 2, 0], 'cd*sr',   'lumen'    ),
         'lx':    PUML_Unit(1.0,  [-2, 0, 0, 0, 0, 1, 0, 2, 0], 'lm/m2',   'lux'      ),
         'Bq':    PUML_Unit(1.0,  [ 0, 0,-1, 0, 0, 0, 0, 0, 0], 's-1',     'becquerel'),
         'Gy':    PUML_Unit(1.0,  [ 2, 0,-2, 0, 0, 0, 0, 0, 0], 'J/kg',    'gray'     ),
         'Sv':    PUML_Unit(1.0,  [ 2, 0,-2, 0, 0, 0, 0, 0, 0], 'J/kg',    'sivert'   ),
         # CGS units                          
-        'dyn':   PUML_Unit(1.0,  [ 1, 1,-2, 0, 0, 0, 0, 0,-2], 'g.cm/s2', 'dyne'     ),
-        'erg':   PUML_Unit(1.0,  [ 2, 1,-2, 0, 0, 0, 0, 0,-4], 'dyn.cm',  'erg'      ),
-        'G':     PUML_Unit(1.0,  [ 0, 1,-1, 0,-1, 0, 0, 0,-1], '10*-4.T', 'Gauss'    ),
+        'dyn':   PUML_Unit(1.0,  [ 1, 1,-2, 0, 0, 0, 0, 0,-2], 'g*cm/s2', 'dyne'     ),
+        'erg':   PUML_Unit(1.0,  [ 2, 1,-2, 0, 0, 0, 0, 0,-4], 'dyn*cm',  'erg'      ),
+        'G':     PUML_Unit(1.0,  [ 0, 1,-1, 0,-1, 0, 0, 0,-1], '10^-4*T', 'Gauss'    ),
         # other derived units
         'deg':   PUML_Unit(0.01745329, [ 0, 0, 0, 0, 0,0,0,1,  0],
-                           '2.[pi].rad/360', 'degree'       ),
+                           '2*[pi]*rad/360', 'degree'       ),
         'eV':    PUML_Unit(1.60217733, [ 2, 1,-2, 0, 0,0,0,0,-16],
-                           '[e].V',        'electronvolt'),
+                           '[e]*V',        'electronvolt'),
         # natural units                                           
         '[e]':   PUML_Unit(1.60217733,        [ 0, 0, 0, 0, 1, 0, 0, 0,-19],
                            None, 'elementary charge'),
@@ -180,7 +180,7 @@ class PUML_Parse:
         symbol, part2 = part2[0], part2[1:]
         parentheses = 0
         while part2:
-            if symbol=='.':
+            if symbol=='*':
                 return self.multiply(
                     self.expression(part1, expr_bak),
                     self.expression(part2, expr_bak)
@@ -222,5 +222,5 @@ class PUML_Parse:
         if factor.base[:self.npbase]!=[0]*self.npbase:
             raise Exception(f"Units '{exp1}' and '{exp2}' cannot be converted")
         value *=  factor.num
-        value *= 10**factor.base[self.base['10*'].base.index(1)]
+        value *= 10**factor.base[self.base['10^'].base.index(1)]
         return value
