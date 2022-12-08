@@ -210,6 +210,8 @@ class ParsePPML:
             if node.mods:
                 for mod in node.mods:
                     value = self._post_cast(mod, node)
+                    if mod.keyword!='mod' and  mod.dtype!=node.dtype:
+                        raise Exception(f"Datatype {node.dtype} of node '{node.name}' cannot be changed to {mod.dtype}")
                     # convert mod units to node units if necessary
                     if node.units and mod.units and node.units!=mod.units:
                         with PPML_Converter() as p:

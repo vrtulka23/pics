@@ -25,8 +25,8 @@ very-long.node23_NAME int = 1
 def test_types():
     data = parse('''
 adult bool = true
-age int = 20
-weight float = 63.3
+age int = 20 a
+weight float = 63.3 kg
 name str = 'Laura'
     ''')
     np.testing.assert_equal(data,{
@@ -52,7 +52,7 @@ assets str = none
     })
     with pytest.raises(Exception) as e_info:
         parse("""
-length float! = none
+length float! = none cm
   = 12 cm
   = 34 cm
         """)
@@ -68,7 +68,7 @@ deposition bool = true
 def test_dimensions():
     data = parse('''
 counts int[3] = [4234,34,2]
-lengths float[2:][2] = [[4234,34],[234,34]]
+lengths float[2:][2] = [[4234,34],[234,34]] cm
 colleagues str[:] = ["John","Patricia","Lena"]
 logic bool[2] = [true,false]
     ''')
@@ -178,14 +178,14 @@ general.colonel int = 1  # namespace notation
     
 def test_imports():
     data = parse('''
-{tests/block_nodes.txt}                        # base import
+{tests/blocks/nodes.txt}                        # base import
 box
-  {tests/block_nodes.txt}                      # import into a group node
-basket.bag {tests/block_nodes.txt}             # import into a namespace
+  {tests/blocks/nodes.txt}                      # import into a group node
+basket.bag {tests/blocks/nodes.txt}             # import into a namespace
 blocks                                         # block imports into a group node
-  matrix int[3][4] = {tests/block_matrix.txt}  # import a dimensional array
-  table table = {tests/block_table.txt}        # import a table
-  text str = {tests/block_text.txt}            # import large text
+  matrix int[3][4] = {tests/blocks/matrix.txt}  # import a dimensional array
+  table table = {tests/blocks/table.txt}        # import a table
+  text str = {tests/blocks/text.txt}            # import large text
     ''')
     np.testing.assert_equal(data,{
         'fruits': 0,
@@ -215,14 +215,28 @@ energy float = 1.23 J # definition
 energy = 2.2 erg      # switching from SI to cgs
 energy = 2.2 g*cm2/s2 # using unit expressions
 
-angle float = 1.57079633 rad    # using numbers 
-angle = 30 deg                  # definition
+angle float = 1.57079633 rad  # definition in radians
+angle = 31 '                  # angle minutes
+
+alcohol float = 34 %  # definition
+alcohol = 2 [ppth]    # converting dimensionless units
+
+temp float = 20 Cel
+temp = 280.15 K
     ''')
     np.testing.assert_equal(data,{
         'size':   100,
         'energy': 2.2e-7,
-        'angle':  0.5235987,
+        'angle':  0.0090175342,
+        'alcohol': 0.2,
+        'temp': 7,
     })  
+    with pytest.raises(Exception) as e_info:
+        parse('''
+age int = 34 a
+age float = 55
+        ''')
+    assert e_info.value.args[0] == "Datatype <class 'int'> of node 'age' cannot be changed to <class 'float'>"
         
 if __name__ == "__main__":
     # Specify wich test to run

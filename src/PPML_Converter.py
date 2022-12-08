@@ -10,15 +10,16 @@ class PPML_Converter:
     base: dict = {}
     prefixes: dict = {}
     derivates: dict = {}
+    arbitrary: dict = {}
     units: dict = {}
     
     def __init__(self):
         self.nbase = len(PPML_UnitList_Base)
-        self.npbase = self.nbase-3
+        self.npbase = self.nbase-1
         # Load unit lists into dictionaries
         for unit in PPML_UnitList_Base:
             self.base[unit[2]] = PPML_Unit(
-                unit[0], unit[1], symbol=unit[2], dfn=unit[3], name=unit[4]
+                unit[0], unit[1], symbol=unit[2], name=unit[3]
             )
         for unit in PPML_UnitList_Prefixes:
             self.prefixes[unit[2]] = PPML_Unit(
@@ -28,7 +29,11 @@ class PPML_Converter:
             self.derivates[unit[2]] = PPML_Unit(
                 unit[0], unit[1], symbol=unit[2], dfn=unit[3], name=unit[4]
             )
-        self.units = self.base | self.derivates
+        for unit in PPML_UnitList_Arbitrary:
+            self.arbitrary[unit[1]] = PPML_Unit(
+                1.0, unit[0], symbol=unit[1], name=unit[2], arbitrary=True
+            )
+        self.units = self.base | self.derivates | self.arbitrary
 
     def __enter__(self):
         return self
@@ -42,32 +47,36 @@ class PPML_Converter:
         if unit1.base!=unit2.base:
             return False
         return True
+
+    def _rebase(self, unit):
+        exp = int(np.floor(np.log10(unit.num)))
+        num = unit.num/10**exp
+        unit.num = num
+        unit.base[-1] += exp
+        return unit
     
     def multiply(self, unit1, unit2):
         num = unit1.num*unit2.num
         base = [unit1.base[i]+unit2.base[i] for i in range(self.nbase)]
-        return PPML_Unit(num, base)
+        return self._rebase(PPML_Unit(num, base))
 
     def divide(self, unit1, unit2):
         num = unit1.num/unit2.num
         base = [unit1.base[i]-unit2.base[i] for i in range(self.nbase)]
-        return PPML_Unit(num, base)
+        return self._rebase(PPML_Unit(num, base))
 
     def power(self, unit, power):
         num = unit.num**power
         base = [unit.base[i]*power for i in range(self.nbase)]
-        return PPML_Unit(num, base)
+        return self._rebase(PPML_Unit(num, base))
 
     def unit(self, string):
         # parse number
         m = re.match('^([0-9.]+)(e([0-9+-]+)|)$', string)
         if m:
-            number = float(string)
-            exp = int(np.floor(np.log10(number)))
-            unit = self.base['1e'].copy()
-            unit.num = number/10**exp
-            unit.base = [b*exp for b in unit.base]
-            return unit
+            num = float(string)
+            base = [0]*self.nbase
+            return self._rebase(PPML_Unit(num, base))
         # parse unit
         string_bak = string
         exp, base, prefix = '', '', ''
@@ -103,6 +112,8 @@ class PPML_Converter:
         # apply exponent
         if exp:
             unit = self.power(unit,int(exp))
+        unit.arbitrary = self.units[base].arbitrary
+        unit.symbol_base = base
         #print("%-06s"%string_bak, "%-03s"%prefix, "%-03s"%base, "%03s"%exp, unit)
         return unit
 
@@ -148,7 +159,9 @@ class PPML_Converter:
             else:
                 part1 = part1 + symbol
                 symbol, part2 = part2[0], part2[1:]
-        return self.unit(part1+symbol)
+        unit = self.unit(part1+symbol)
+        unit.symbol = expr_bak
+        return unit
         
     def convert(self, value, exp1, exp2):
         unit1 = self.expression(exp1)
@@ -156,6 +169,9 @@ class PPML_Converter:
         factor = self.divide(unit1,unit2)
         if factor.base[:self.npbase]!=[0]*self.npbase:
             raise Exception(f"Units '{exp1}' and '{exp2}' cannot be converted")
-        value *=  factor.num
-        value *= 10**factor.base[self.base['1e'].base.index(1)]
-        return value
+        if unit1.arbitrary or unit2.arbitrary:
+            return PPML_Convert_Arbitrary(value, unit1, unit2)
+        else:
+            value *= factor.num
+            value *= 10**factor.base[self.base['1e'].base.index(1)]
+            return value

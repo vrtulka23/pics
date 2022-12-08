@@ -101,16 +101,26 @@ def test_derivates():
             
 def test_convert():
     examples = [
-        (1, 'm',   1e-3,          'km'),
-        (1, 'kJ',  1e3,           'J'),
-        (1, 'eV',  1.6021773e-4,  'fJ'),
-        (1, 'erg', 624.150636,    'GeV'),
-        (1, 'deg', 0.01745329,    'rad'),
+        (1,   'm',    1e-3,          'km'),
+        (1,   'kJ',   1e3,           'J'),
+        (1,   'eV',   1.6021773e-4,  'fJ'),
+        (1,   'erg',  624.150636,    'GeV'),
+        (1,   'deg',  0.01745329,    'rad'),
+        (1,   'Cel',  274.15,        'K'),
+        (1,   'kCel', 1273.15,       'K'),
+        (1e3, 'K',    726.85,        'Cel'),
+        (1,   'kK',   0.72685,       'kCel'),
     ]
     with PPML_Converter() as p:
-        for e in examples:
-            print(f"{e[0]} {e[1]:4s} = {e[2]:.4f} {e[3]}")
-            assert isclose(p.convert(e[0], e[1], e[3]), e[2], rel_tol=1e-6)
+        for (value1,expr1,value2,expr2) in examples:
+            print(f"{value1:.3e} {expr1:4s} = {value2:.3e} {expr2}")
+            conv = p.convert(value1, expr1, expr2)
+            equal = isclose(conv, value2, rel_tol=1e-6)
+            if not equal:
+                print(f"Value 1 given:     {value1:.3e} {expr1}")
+                print(f"Value 2 converted: {conv} {expr2}")
+                print(f"Value 2 expected:  {value2} {expr2}")
+            assert equal
             
 if __name__ == "__main__":
     # Specify wich test to run
