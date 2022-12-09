@@ -1,8 +1,8 @@
-import sys
+import sys, os
 import pytest
 import numpy as np
 
-sys.path.insert(1, '/Users/perseus/Projects/pics/src')
+sys.path.append(os.path.join(os.path.dirname(sys.path[0]),'src'))
 from PPML_Converter import *
 
 def test_base():

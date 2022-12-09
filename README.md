@@ -42,12 +42,13 @@ In later sections we will explain various node formats and conversions in detail
 
 #### Names
 
-Node names can consist only lower/upper case letters, numbers, underscores and minus signes.
+Node names can consist only lower/upper case letters, numbers, underscores, minus signes and a dot.
 ```
 UNIT_L float = 23.3 cm
 SongName string = "Yellow submarine"
 number-of-votes int = 34
 1D bool = true
+hierarchical.node int = 334
 ```
 In adition, names cannot start with signs `@`, `&` and `$` because these are reserved for runtime directives.
 

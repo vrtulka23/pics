@@ -51,7 +51,7 @@ class PPML_Node(BaseModel):
             self.node = PPML_Type_Import(self.parser)
 
     def _node_option(self):
-        m=re.match('^=\s*', self.parser.ccode)
+        m=re.match(r'^=\s*', self.parser.ccode)
         if m:           
             self.parser.get_value()
             self.parser.get_units()
@@ -64,7 +64,7 @@ class PPML_Node(BaseModel):
             self.node = PPML_Type_Group(self.parser)
 
     def _node_mod(self):       # Parse modification without type
-        m=re.match('^\s*=\s*', self.parser.ccode)
+        m=re.match(r'^\s*=\s*', self.parser.ccode)
         if m:
             self.parser.get_value()
             self.parser.get_units()

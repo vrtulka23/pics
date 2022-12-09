@@ -1,3 +1,0 @@
-C                           # List of constants
-  k_B float = 1.5e27 erg/K  # Boltzman's constant
-  m_p float = 1.6323e-23 g  # Proton mass

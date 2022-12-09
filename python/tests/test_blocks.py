@@ -1,5 +1,5 @@
-import sys
-sys.path.insert(1, '/Users/perseus/Projects/pics/src')
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(sys.path[0]),'src'))
 from ParsePPML import *
 import pytest
 import numpy as np
