@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import List
 
-class PPML_Unit(BaseModel):
+class DPML_Unit(BaseModel):
     num: float         # number value
     base: List[int]    # unit dimension exponents
     dfn: str = None    # definition expression

@@ -1,6 +1,6 @@
 import numpy as np
 
-PPML_UnitList_Base = [
+DPML_UnitList_Base = [
     # physical units
     (1.0, [1,0,0,0,0,0,0,0,0], 'm',   'meter'),
     (1.0, [0,1,0,0,0,0,0,0,0], 'g',   'gram'),
@@ -14,7 +14,7 @@ PPML_UnitList_Base = [
     (1.0, [0,0,0,0,0,0,0,0,1], '1e',  'power of ten'),
 ]
 
-PPML_UnitList_Derivates = [ # m,g,s,K,C,cd,mol,rad,10
+DPML_UnitList_Derivates = [ # m,g,s,K,C,cd,mol,rad,10
     # SI units
     (1.0,        [ 0, 0, 0, 0, 0, 0, 0, 2,  0], 'sr',      'rad2',    'steradian'),
     (1.0,        [ 0, 0,-1, 0, 0, 0, 0, 0,  0], 'Hz',      's-1',     'hertz'    ),
@@ -77,7 +77,7 @@ PPML_UnitList_Derivates = [ # m,g,s,K,C,cd,mol,rad,10
     (1,          [ 0, 0, 0, 0, 0, 0, 0, 0, -3], '[ppth]',  '1e-3',        'promile'),
 ]
 
-PPML_UnitList_Prefixes = [
+DPML_UnitList_Prefixes = [
     (1.0,        [ 0, 0, 0, 0, 0, 0, 0, 0, 24], 'Y',       '1e24',  'yotta'), 
     (1.0,        [ 0, 0, 0, 0, 0, 0, 0, 0, 21], 'Z',       '1e21',  'zetta'), 
     (1.0,        [ 0, 0, 0, 0, 0, 0, 0, 0, 18], 'E',       '1e18',  'exa'  ), 
@@ -100,7 +100,7 @@ PPML_UnitList_Prefixes = [
     (1.0,        [ 0, 0, 0, 0, 0, 0, 0, 0,-24], 'y',       '1e-24', 'yocto'), 
 ]
 
-def PPML_Convert_Arbitrary(value1, unit1, unit2):
+def DPML_Convert_Arbitrary(value1, unit1, unit2):
     conv = "_".join([unit1.symbol_base, unit2.symbol_base])
     value2 = None
     if conv=="Cel_K":
@@ -114,6 +114,6 @@ def PPML_Convert_Arbitrary(value1, unit1, unit2):
     else:
         raise Exception(f"No conversion of arbitrary unit '{unit1.symbol}' to '{unit2.symbol}' was found.")
         
-PPML_UnitList_Arbitrary = [
+DPML_UnitList_Arbitrary = [
     ([0,0,0,1,0,0,0,0,0], 'Cel', 'Degree Celsius'),
 ]

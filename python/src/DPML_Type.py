@@ -4,10 +4,10 @@ import numpy as np
 import json
 import csv
 
-from PPML_Parser import *
-import ParsePPML
+from DPML_Parser import *
+import ParseDPML
 
-class PPML_Type(BaseModel):
+class DPML_Type(BaseModel):
     code: str 
     line: int
     source: str
@@ -47,48 +47,48 @@ class PPML_Type(BaseModel):
     def parse(self):
         pass
         
-class PPML_Type_Empty(PPML_Type):
+class DPML_Type_Empty(DPML_Type):
     keyword: str = 'empty'
 
-class PPML_Type_Mod(PPML_Type):
+class DPML_Type_Mod(DPML_Type):
     keyword: str = 'mod'
 
-class PPML_Type_Group(PPML_Type):
+class DPML_Type_Group(DPML_Type):
     keyword: str = 'group'
 
-class PPML_Type_Comment(PPML_Type):
+class DPML_Type_Comment(DPML_Type):
     keyword: str = 'comment'
 
-class PPML_Type_Option(PPML_Type):
+class DPML_Type_Option(DPML_Type):
     keyword: str = 'option'
     
-class PPML_Type_Boolean(PPML_Type):
+class DPML_Type_Boolean(DPML_Type):
     keyword: str = 'bool'
     value: bool = None
     dtype = bool
     
-class PPML_Type_Integer(PPML_Type):
+class DPML_Type_Integer(DPML_Type):
     keyword: str = 'int'
     value: int = None
     options: List[BaseModel] = []
     dtype = int
 
-class PPML_Type_Float(PPML_Type):
+class DPML_Type_Float(DPML_Type):
     keyword: str = 'float'
     value: float = None
     options: List[BaseModel] = []
     dtype = float
 
-class PPML_Type_String(PPML_Type):
+class DPML_Type_String(DPML_Type):
     keyword: str = 'str'
     options: List[BaseModel] = []
 
-class PPML_Type_Import(PPML_Type):
+class DPML_Type_Import(DPML_Type):
     keyword: str = 'import'
 
     def parse(self):
         # Parse import code
-        with ParsePPML.ParsePPML(self.value_raw) as p:
+        with ParseDPML.ParseDPML(self.value_raw) as p:
             p.initialize()
             # Add proper indent and hierarchy
             for node in p.nodes:
@@ -99,7 +99,7 @@ class PPML_Type_Import(PPML_Type):
                 node.indent = node.indent+self.indent
             return p.nodes
     
-class PPML_Type_Table(PPML_Type):
+class DPML_Type_Table(DPML_Type):
     keyword: str = 'table'
     
     def parse(self):
@@ -111,7 +111,7 @@ class PPML_Type_Table(PPML_Type):
             if line.strip()=='':
                 break
             # Parse node parameters
-            parser = PPML_Parser(
+            parser = DPML_Parser(
                 code=line,
                 line=self.line,
                 source=self.source
@@ -123,10 +123,10 @@ class PPML_Type_Table(PPML_Type):
                 raise Exception(f"Incorrect header format: {line}")
             # Initialize actual node
             types = {
-                'bool':  PPML_Type_Boolean,
-                'int':   PPML_Type_Integer,
-                'float': PPML_Type_Float,
-                'str':   PPML_Type_String,
+                'bool':  DPML_Type_Boolean,
+                'int':   DPML_Type_Integer,
+                'float': DPML_Type_Float,
+                'str':   DPML_Type_String,
             }
             if parser.keyword in types:
                 node = types[parser.keyword](parser)

@@ -3,45 +3,45 @@ import pytest
 import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(sys.path[0]),'src'))
-from PPML_Converter import *
+from DPML_Converter import *
 
 def test_base():
-    with PPML_Converter() as p:
+    with DPML_Converter() as p:
         # Closure of base units
-        unit = PPML_Unit(1.0, [0 for i in range(p.nbase)])
+        unit = DPML_Unit(1.0, [0 for i in range(p.nbase)])
         for base in p.base.values():
             unit = p.multiply(unit,base)
         print(f"Base: {unit.num} {unit.base}")
-        assert p.equal(unit, PPML_Unit(1.0, [1 for i in range(p.nbase)]))
+        assert p.equal(unit, DPML_Unit(1.0, [1 for i in range(p.nbase)]))
 
 def test_operations():
-    with PPML_Converter() as p:
+    with DPML_Converter() as p:
         # Multiplication
-        unit1 = PPML_Unit(2.0, [i for i in range(1,1+p.nbase)])
-        unit2 = PPML_Unit(2.0, [i for i in range(2,2+p.nbase)])
+        unit1 = DPML_Unit(2.0, [i for i in range(1,1+p.nbase)])
+        unit2 = DPML_Unit(2.0, [i for i in range(2,2+p.nbase)])
         unit3 = p.multiply(unit1, unit2)
-        unit4 = PPML_Unit(unit1.num*unit2.num,
+        unit4 = DPML_Unit(unit1.num*unit2.num,
                           [unit1.base[i]+unit2.base[i] for i in range(p.nbase)])
         print(f"  {unit1.num} {unit1.base}\n* {unit2.num} {unit2.base}\n= {unit3.num} {unit3.base}\n")
         assert p.equal(unit3, unit4)
         # Division
-        unit1 = PPML_Unit(4.0, [i+i for i in range(1,1+p.nbase)])
-        unit2 = PPML_Unit(2.0, [i for i in range(1,1+p.nbase)])
+        unit1 = DPML_Unit(4.0, [i+i for i in range(1,1+p.nbase)])
+        unit2 = DPML_Unit(2.0, [i for i in range(1,1+p.nbase)])
         unit3 = p.divide(unit1, unit2)
-        unit4 = PPML_Unit(unit1.num/unit2.num,
+        unit4 = DPML_Unit(unit1.num/unit2.num,
                           [unit1.base[i]-unit2.base[i] for i in range(p.nbase)])
         print(f"  {unit1.num} {unit1.base}\n/ {unit2.num} {unit2.base}\n= {unit3.num} {unit3.base}\n")
         assert p.equal(unit3, unit4)
         # Power
-        unit1 = PPML_Unit(2.0, [i for i in range(1,1+p.nbase)])
+        unit1 = DPML_Unit(2.0, [i for i in range(1,1+p.nbase)])
         power = 3
         unit2 = p.power(unit1, power)
-        unit3 = PPML_Unit(unit1.num**power, [unit1.base[i]*power for i in range(p.nbase)])
+        unit3 = DPML_Unit(unit1.num**power, [unit1.base[i]*power for i in range(p.nbase)])
         print(f"  {unit1.num} {unit1.base}\n^ {power}\n= {unit3.num} {unit3.base}")
         assert p.equal(unit2, unit3)
         
 def test_units():
-    with PPML_Converter() as p:
+    with DPML_Converter() as p:
         units = {
             'm':     p.units['m'],                               # just a unit                      
             'm-2':   p.power(p.units['m'],-2),                   # exponents
@@ -63,7 +63,7 @@ def test_units():
             assert p.equal(unit1, unit2)            
 
 def test_expressions():
-    with PPML_Converter() as p:
+    with DPML_Converter() as p:
         newton = p.multiply(p.prefixes['k'],p.base['g'])
         newton = p.multiply(newton,p.base['m'])
         newton = p.divide(newton,p.power(p.base['s'],2))
@@ -86,7 +86,7 @@ def test_expressions():
 
 def test_derivates():
     # Check if derived units are correct
-    with PPML_Converter() as p:
+    with DPML_Converter() as p:
         for sign, unit in p.derivates.items():
             if not unit.dfn:
                 continue
@@ -111,7 +111,7 @@ def test_convert():
         (1e3, 'K',    726.85,        'Cel'),
         (1,   'kK',   0.72685,       'kCel'),
     ]
-    with PPML_Converter() as p:
+    with DPML_Converter() as p:
         for (value1,expr1,value2,expr2) in examples:
             print(f"{value1:.3e} {expr1:4s} = {value2:.3e} {expr2}")
             conv = p.convert(value1, expr1, expr2)

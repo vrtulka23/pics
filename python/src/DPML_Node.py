@@ -3,16 +3,16 @@ from pydantic import BaseModel
 import numpy as np
 import re
 
-from PPML_Type import *
-from PPML_Parser import *
+from DPML_Type import *
+from DPML_Parser import *
 
-class PPML_Node(BaseModel):
+class DPML_Node(BaseModel):
     code: str               
     line: int
     source: str
     
-    parser: PPML_Parser = None
-    node: PPML_Type = None
+    parser: DPML_Parser = None
+    node: DPML_Type = None
     
     def _node_type(self):
         self.parser.get_type()      # parse node type
@@ -22,23 +22,23 @@ class PPML_Node(BaseModel):
         self.parser.get_units()     # parse node units
         self.parser.get_comment()   # parse node comments
         types = {
-            'bool':  PPML_Type_Boolean,
-            'int':   PPML_Type_Integer,
-            'float': PPML_Type_Float,
-            'str':   PPML_Type_String,
-            'table': PPML_Type_Table,
+            'bool':  DPML_Type_Boolean,
+            'int':   DPML_Type_Integer,
+            'float': DPML_Type_Float,
+            'str':   DPML_Type_String,
+            'table': DPML_Type_Table,
         }
         if self.parser.keyword in types:
             self.node = types[self.parser.keyword](self.parser)
 
     def _node_empty(self):
         if self.parser.isempty():
-            self.node = PPML_Type_Empty(self.parser)
+            self.node = DPML_Type_Empty(self.parser)
 
     def _node_comment(self):
         self.parser.get_comment()
         if self.parser.comment:
-            self.node = PPML_Type_Comment(self.parser)
+            self.node = DPML_Type_Comment(self.parser)
 
     def _node_import(self):
         m=re.match(r'^([a-zA-Z0-9_.-]*\s*){(.*)}', self.parser.ccode)
@@ -48,7 +48,7 @@ class PPML_Node(BaseModel):
                 self.parser.ccode = self.parser.ccode.lstrip()
             self.parser.get_import()
             self.parser.get_comment()
-            self.node = PPML_Type_Import(self.parser)
+            self.node = DPML_Type_Import(self.parser)
 
     def _node_option(self):
         m=re.match(r'^=\s*', self.parser.ccode)
@@ -56,12 +56,12 @@ class PPML_Node(BaseModel):
             self.parser.get_value()
             self.parser.get_units()
             self.parser.get_comment()
-            self.node = PPML_Type_Option(self.parser)
+            self.node = DPML_Type_Option(self.parser)
             
     def _node_group(self):
         self.parser.get_comment()
         if self.parser.isempty():
-            self.node = PPML_Type_Group(self.parser)
+            self.node = DPML_Type_Group(self.parser)
 
     def _node_mod(self):       # Parse modification without type
         m=re.match(r'^\s*=\s*', self.parser.ccode)
@@ -69,10 +69,10 @@ class PPML_Node(BaseModel):
             self.parser.get_value()
             self.parser.get_units()
             self.parser.get_comment()
-            self.node = PPML_Type_Mod(self.parser)
+            self.node = DPML_Type_Mod(self.parser)
             
     def parse(self):
-        self.parser = PPML_Parser(
+        self.parser = DPML_Parser(
             code=self.code,
             line=self.line,
             source=self.source

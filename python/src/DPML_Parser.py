@@ -2,9 +2,9 @@ from typing import List
 from pydantic import BaseModel
 import re
 
-from PPML_Converter import *
+from DPML_Converter import *
 
-class PPML_Parser(BaseModel):
+class DPML_Parser(BaseModel):
     code: str 
     ccode: str
     line: int
@@ -114,7 +114,7 @@ class PPML_Parser(BaseModel):
         m=re.match(r'^(\s+([^\s#=]+))', self.ccode)
         if m:
             self.units = m.group(2)
-            with PPML_Converter() as p:
+            with DPML_Converter() as p:
                 p.expression(self.units)
             self._strip(m.group(1))
         

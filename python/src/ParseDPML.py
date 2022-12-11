@@ -3,10 +3,10 @@ import re
 import os
 from typing import List
 
-from PPML_Node import *
-from PPML_Converter import *
+from DPML_Node import *
+from DPML_Converter import *
 
-class ParsePPML:
+class ParseDPML:
     lines: str
     nodes: List = []
     
@@ -25,7 +25,7 @@ class ParsePPML:
     # Create nodes from code lines
     def pre_nodes(self, source='inline'):
         for l,line in enumerate(self.lines):
-            self.nodes.append(PPML_Node(
+            self.nodes.append(DPML_Node(
                 code = line,
                 line = l+1,
                 source = source,
@@ -46,7 +46,7 @@ class ParsePPML:
                     else:
                         block.append( subnode.code )
                 if len(self.nodes)==0:
-                    raise Exception("Block structure starting on line %d is not properly terminated."%node['line'])
+                    raise Exception("Block structure starting on line %d is not properly terminated."%node.line)
                 nodes.append(node)
             else:
                 nodes.append(node)
@@ -214,7 +214,7 @@ class ParsePPML:
                         raise Exception(f"Datatype {node.dtype} of node '{node.name}' cannot be changed to {mod.dtype}")
                     # convert mod units to node units if necessary
                     if node.units and mod.units and node.units!=mod.units:
-                        with PPML_Converter() as p:
+                        with DPML_Converter() as p:
                             value = p.convert(value, mod.units, node.units)
                     node.value = value
             # parse options
