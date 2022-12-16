@@ -23,7 +23,7 @@ class ParseDPML:
         pass
         
     # Create nodes from code lines
-    def pre_nodes(self, source='inline'):
+    def create_nodes(self, source='inline'):
         for l,line in enumerate(self.lines):
             self.nodes.append(DPML_Node(
                 code = line,
@@ -32,7 +32,7 @@ class ParseDPML:
             ))
 
     # Group block lines
-    def pre_blocks(self):
+    def group_block_values(self):
         nodes = []
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
@@ -51,9 +51,9 @@ class ParseDPML:
             else:
                 nodes.append(node)
         self.nodes = nodes
-
+        
     # Replace specific symbols with substitution marks
-    def pre_symbols(self):
+    def encode_symbols(self):
         # Add replacement marks
         # TODO: we need to also properly treate arrays like this ["d#", "b"]
         replace = ["\\'", '\\"', "\n"]
@@ -62,24 +62,24 @@ class ParseDPML:
                 self.nodes[n].code = self.nodes[n].code.replace(symbol,f"$@{i:02d}")
                 
     # Convert symbols to original letters
-    def _post_symbols(self, value):
+    def _decode_symbols(self, value):
         replace = ["\'", '\"', "\n"]
         if isinstance(value, (list, np.ndarray)):
-            value = [self._post_symbols(v) for v in value]
+            value = [self._decode_symbols(v) for v in value]
         elif value is None:
             return value
         else:
             for i,symbol in enumerate(replace):
                 value = value.replace(f"$@{i:02d}", symbol)
         return value
-    def post_symbols(self):
+    def decode_symbols(self):
         # Remove replacement marks
         for n,node in enumerate(self.nodes):
-            self.nodes[n].value_raw = self._post_symbols(node.value_raw)
-            self.nodes[n].code = self._post_symbols(node.code)
+            self.nodes[n].value_raw = self._decode_symbols(node.value_raw)
+            self.nodes[n].code = self._decode_symbols(node.code)
         
     # Group comment lines
-    def post_comments(self):
+    def combine_comments(self):
         # Group following comments
         nodes = [self.nodes.pop(0)]
         while len(self.nodes)>0:
@@ -106,8 +106,8 @@ class ParseDPML:
         for n,node in enumerate(self.nodes):
             self.nodes[n].comments = "\n".join(node.comments)
 
-    # Assign options to preceeding nodes
-    def post_options(self):
+    # Combine options to preceeding nodes
+    def set_options(self):
         # Collect options to correpsonding nodes
         nodes = [self.nodes.pop(0)]
         while len(self.nodes)>0:
@@ -122,7 +122,7 @@ class ParseDPML:
         self.nodes = nodes
 
     # Expand nodes that have a spetial feature
-    def post_parse_types(self):
+    def parse_nodes(self):
         nodes = []
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
@@ -135,7 +135,7 @@ class ParseDPML:
         self.nodes = nodes
                 
     # Remove empty nodes and lonely comments
-    def post_remove(self):
+    def remove_useless_nodes(self):
         nodes = []
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
@@ -144,7 +144,7 @@ class ParseDPML:
         self.nodes = nodes
 
     # Change node names according to node hierarchy
-    def post_hierarchy(self):
+    def set_hierarchy(self):
         indent, names = [-1], []
         for node in self.nodes:
             if node.name is None:
@@ -165,7 +165,7 @@ class ParseDPML:
         self.nodes = nodes
 
     # Add modifications to nodes
-    def post_modify(self):
+    def set_modifications(self):
         nodes = {}
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
@@ -202,7 +202,7 @@ class ParseDPML:
             if value is not None:
                 value = node.dtype(value)
         return value
-    def post_values(self):
+    def process_values(self):
         for key,node in self.nodes.items():
             # cast definition value
             node.value = self._post_cast(node, node)
@@ -228,26 +228,64 @@ class ParseDPML:
                 if node.value not in options:
                     raise Exception(f"Value '{node.value}' of node '{node.name}' doesn't match with any option:",options)
 
+    def _find_nodes(self,nodes,node):
+        found = []
+        for n in reversed(range(len(nodes))):
+            replace = node.value_raw
+            children = False
+            if replace[-2:]=='.*':
+                replace = replace[:-2]
+                children = True
+            if nodes[n].name.startswith(replace):
+                cnode = nodes[n].copy()
+                if children:
+                    parent = node.name.split('$')[0]
+                    name = cnode.name[len(replace)+1:]
+                    child = None
+                else:
+                    parent = node.name.split('$')[0]
+                    name = replace.split('.')[-1]
+                    child = cnode.name[len(replace):]
+                if child:
+                    name = name + child
+                if parent:
+                    name = parent + name
+                cnode.name = name
+                found.append(cnode)
+        if len(found)==0:
+            raise Exception(f"Cannot find node '{replace}'")
+        return found
+    def inject_nodes(self):
+        nodes = []
+        while len(self.nodes)>0:
+            node = self.nodes.pop(0)
+            if node.keyword=='injection':
+                nodes += self._find_nodes(nodes,node)
+            else:
+                nodes.append(node)
+        self.nodes = nodes
+    
     # Prepare raw nodes
     def initialize(self):
-        self.pre_nodes()                     # determine nodes from lines
-        self.pre_blocks()                    # combine text blocks
-        self.pre_symbols()                   # encode text symbols
+        self.create_nodes()                  # determine nodes from lines
+        self.group_block_values()            # combine text blocks
+        self.encode_symbols()                # encode text symbols
         for n,node in enumerate(self.nodes):
-                node = node.parse()          # process code
-                if node:
-                    self.nodes[n] = node
-        self.post_symbols()                  # decode text symbols
-        self.post_comments()                 # combine comments
-        self.post_options()                  # collect options
-        self.post_remove()                   # remove empty nodes
-        self.post_parse_types()              # parse special node types
+            node = node.parse()              # process code
+            if node:
+                self.nodes[n] = node
+        self.decode_symbols()                # decode text symbols
+        self.combine_comments()              # combine comments
+        self.set_options()                   # collect options
+        self.remove_useless_nodes()          # remove empty nodes
+        self.parse_nodes()                   # parse nodes during initialization
 
     # Finalize all nodes
     def finalize(self):
-        self.post_hierarchy()                # set hierarchycal naming
-        self.post_modify()                   # modify node values
-        self.post_values()                   # validate node values              
+        self.set_hierarchy()                 # set hierarchycal naming
+        self.inject_nodes()                  # inject nodes to substitution marks
+        self.set_modifications()             # set_modifications
+        self.process_values()                # cast and validate node values              
         
     # Display final nodes
     def display(self):

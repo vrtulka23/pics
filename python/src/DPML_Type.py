@@ -98,6 +98,9 @@ class DPML_Type_Import(DPML_Type):
                     node.name = self.name+'.'+node.name
                 node.indent = node.indent+self.indent
             return p.nodes
+
+class DPML_Type_Injection(DPML_Type):
+    keyword: str = 'injection'    
     
 class DPML_Type_Table(DPML_Type):
     keyword: str = 'table'

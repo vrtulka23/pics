@@ -12,34 +12,38 @@ def parse(code):
         p.display()
         return p.data()
 
-"""
-def test_variable_nodes():
+def test_injection_nodes():
     data = parse('''
-$birds
-  parrots int = 38
-  canary int = 23
+birds
+  exotic
+    parrots int = 38
+    canary int = 23
 
 petshop
   dogs int = 12
   cats int = 45
-  $birds
+  (birds.exotic)
 
-shelter
+jungle (birds.exotic.parrots)
+
+animal.shelter
   dogs int = 34
   cats int = 23
-  $birds
+  (birds.exotic.*)
     ''')
     np.testing.assert_equal(data,{
+        'birds.exotic.parrots': 38,
+        'birds.exotic.canary': 23,
         'petshop.dogs': 12,
         'petshop.cats': 45,
-        'petshop.parrots': 38,
-        'petshop.canary': 23,
-        'shelter.dogs': 34,
-        'shelter.cats': 23,
-        'shelter.parrots': 38,
-        'shelter.canary': 23,
+        'petshop.exotic.parrots': 38,
+        'petshop.exotic.canary': 23,
+        'jungle.parrots': 38,
+        'animal.shelter.dogs': 34,
+        'animal.shelter.cats': 23,
+        'animal.shelter.parrots': 38,
+        'animal.shelter.canary': 23,
     })
-"""
         
 if __name__ == "__main__":
     # Specify wich test to run

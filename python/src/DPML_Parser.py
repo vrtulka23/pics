@@ -88,6 +88,17 @@ class DPML_Parser(BaseModel):
                 self.value = f.read()
             self._strip(m.group(1))
             
+    def get_injection(self):
+        m=re.match(r'^(\(([a-zA-Z0-9_.-]*[*]?)\))', self.ccode)
+        if m:
+            self.source = m.group(2)
+            if self.name:
+                self.name = self.name + '.$.' + m.group(2)
+            else:
+                self.name = '$.' + m.group(2)
+            self.value = m.group(2)
+            self._strip(m.group(1))
+            
     def get_value(self):
         # Remove equal sign
         m=re.match(r'^(\s*=\s*)', self.ccode)
