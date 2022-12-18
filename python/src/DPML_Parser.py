@@ -83,22 +83,19 @@ class DPML_Parser(BaseModel):
     def get_import(self):
         m=re.match(r'^({(.*)})', self.ccode)
         if m:
-            with open(m.group(2),'r') as f:
-                self.source = m.group(2)
-                self.value = f.read()
-            self._strip(m.group(1))
-            
-    def get_injection(self):
-        m=re.match(r'^(\(([a-zA-Z0-9_.-]*[*]?)\))', self.ccode)
-        if m:
-            self.source = m.group(2)
-            if self.name:
-                self.name = self.name + '.$.' + m.group(2)
+            if self.keyword:
+                with open(m.group(2),'r') as f:
+                    self.source = m.group(2)
+                    self.value = f.read()
             else:
-                self.name = '$.' + m.group(2)
-            self.value = m.group(2)
+                self.source = m.group(2)
+                self.value = m.group(2)
+                if self.name:
+                    self.name = f"{self.name}.{m.group(1)}"
+                else:
+                    self.name = f"{m.group(1)}"
             self._strip(m.group(1))
-            
+    
     def get_value(self):
         # Remove equal sign
         m=re.match(r'^(\s*=\s*)', self.ccode)

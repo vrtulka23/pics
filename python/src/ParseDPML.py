@@ -10,8 +10,11 @@ class ParseDPML:
     lines: str
     nodes: List = []
     
-    def __init__(self, code, **kwargs):
-        self.lines = code.split('\n')
+    def __init__(self, code=None, **kwargs):
+        if code:
+            self.lines = code.split('\n')
+        else:
+            self.lines = []
     
     def __enter__(self):
         return self
@@ -126,12 +129,7 @@ class ParseDPML:
         nodes = []
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
-            parsed = node.parse()
-            if parsed:
-                for node in parsed:
-                    nodes.append(node)
-            else:
-                nodes.append(node)
+            nodes = node.parse(nodes)
         self.nodes = nodes
                 
     # Remove empty nodes and lonely comments
@@ -227,43 +225,30 @@ class ParseDPML:
                 # check if node value is in options
                 if node.value not in options:
                     raise Exception(f"Value '{node.value}' of node '{node.name}' doesn't match with any option:",options)
-
-    def _find_nodes(self,nodes,node):
-        found = []
-        for n in reversed(range(len(nodes))):
-            replace = node.value_raw
-            children = False
-            if replace[-2:]=='.*':
-                replace = replace[:-2]
-                children = True
-            if nodes[n].name.startswith(replace):
-                cnode = nodes[n].copy()
-                if children:
-                    parent = node.name.split('$')[0]
-                    name = cnode.name[len(replace)+1:]
-                    child = None
-                else:
-                    parent = node.name.split('$')[0]
-                    name = replace.split('.')[-1]
-                    child = cnode.name[len(replace):]
-                if child:
-                    name = name + child
-                if parent:
-                    name = parent + name
-                cnode.name = name
-                found.append(cnode)
-        if len(found)==0:
-            raise Exception(f"Cannot find node '{replace}'")
-        return found
-    def inject_nodes(self):
+    
+    def query(self,query):
         nodes = []
-        while len(self.nodes)>0:
-            node = self.nodes.pop(0)
-            if node.keyword=='injection':
-                nodes += self._find_nodes(nodes,node)
-            else:
-                nodes.append(node)
-        self.nodes = nodes
+        if query=='*':
+            return self.nodes
+        elif query[-2:]=='.*':
+            for node in self.nodes:
+                if node.name.startswith(query[:-1]):
+                    node = node.copy()
+                    node.name = node.name[len(query[:-1]):]
+                    nodes.append(node)
+        else:
+            for node in self.nodes:
+                if node.name==query:
+                    node = node.copy()
+                    node.name = node.name.split('.')[-1]
+                    nodes.append(node)
+        if len(nodes)==0:
+            raise Exception(f"Cannot find node '{query}'")
+        return nodes        
+    
+    def load(self, filepath):
+        with open(filepath,'r') as f:
+            self.lines += f.read().split('\n')
     
     # Prepare raw nodes
     def initialize(self):
@@ -278,12 +263,11 @@ class ParseDPML:
         self.combine_comments()              # combine comments
         self.set_options()                   # collect options
         self.remove_useless_nodes()          # remove empty nodes
+        self.set_hierarchy()                 # set hierarchycal naming
         self.parse_nodes()                   # parse nodes during initialization
 
     # Finalize all nodes
     def finalize(self):
-        self.set_hierarchy()                 # set hierarchycal naming
-        self.inject_nodes()                  # inject nodes to substitution marks
         self.set_modifications()             # set_modifications
         self.process_values()                # cast and validate node values              
         

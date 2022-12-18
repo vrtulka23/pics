@@ -31,6 +31,38 @@ basket.bag {tests/blocks/nodes.txt}             # import into a namespace
         'basket.bag.vegies.potato': 200.0,
     })
 
+def test_query_remote():
+    data = parse('''
+bowl 
+  {tests/blocks/nodes.txt?fruits}             # selecting only specific node
+plate {tests/blocks/nodes.txt?vegies.*}       # selecting node tree
+    ''')
+    np.testing.assert_equal(data,{
+        'bowl.fruits': 0,
+        'plate.potato': 200.0,
+    })
+    
+def test_query_current():
+    data = parse('''
+icecream
+  waffle str = 'standard'
+  scoops
+    strawberry int = 1
+    chocolate int = 2
+
+bowl 
+  {?icecream.scoops.*}      # select nodes from current file
+plate {?icecream.waffle}    # select node from current file
+    ''')
+    np.testing.assert_equal(data,{
+        'icecream.waffle': 'standard',
+        'icecream.scoops.strawberry': 1,
+        'icecream.scoops.chocolate': 2,
+        'bowl.strawberry': 1,
+        'bowl.chocolate': 2,
+        'plate.waffle': 'standard',
+    })
+    
 def test_import_matrix():
     data = parse('''
 blocks                                         # block imports into a group node

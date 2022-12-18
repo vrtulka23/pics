@@ -44,8 +44,9 @@ class DPML_Type(BaseModel):
             kwargs['defined'] = parser.defined
         super().__init__(**kwargs)
 
-    def parse(self):
-        pass
+    def parse(self, nodes):
+        nodes.append(self)
+        return nodes
         
 class DPML_Type_Empty(DPML_Type):
     keyword: str = 'empty'
@@ -86,29 +87,37 @@ class DPML_Type_String(DPML_Type):
 class DPML_Type_Import(DPML_Type):
     keyword: str = 'import'
 
-    def parse(self):
+    def parse(self, nodes):
         # Parse import code
-        with ParseDPML.ParseDPML(self.value_raw) as p:
-            p.initialize()
+        if '?' in self.value_raw:
+            filename,query = self.value_raw.split('?')
+        else:
+            filename,query = self.value_raw,'*'
+        with ParseDPML.ParseDPML() as p:
+            if filename:  # open external file and parse the values
+                p.load(filename)
+                p.initialize()
+            else:         # use values parsed in the current file
+                p.nodes = nodes
             # Add proper indent and hierarchy
-            for node in p.nodes:
+            for node in p.query(query):
+                path = self.name.split('.{')
+                path.pop()
+                path.append(node.name)                
                 node.source = self.source
                 node.line = self.line
-                if self.name and node.indent==0:
-                    node.name = self.name+'.'+node.name
+                node.name = ".".join(path)
                 node.indent = node.indent+self.indent
-            return p.nodes
+                nodes.append(node)
+        return nodes
 
-class DPML_Type_Injection(DPML_Type):
-    keyword: str = 'injection'    
-    
 class DPML_Type_Table(DPML_Type):
     keyword: str = 'table'
     
-    def parse(self):
+    def parse(self, nodes):
         lines = self.value_raw.split("\n")
         # Parse nodes from table header
-        nodes = []
+        table = []
         while len(lines)>0:
             line = lines.pop(0)
             if line.strip()=='':
@@ -134,7 +143,7 @@ class DPML_Type_Table(DPML_Type):
             if parser.keyword in types:
                 node = types[parser.keyword](parser)
                 node.value = []
-                nodes.append(node)
+                table.append(node)
             else:
                 raise Exception(f"Incorrect format or missing empty line after header: {self.code}")
         # Remove whitespaces from all table rows
@@ -142,18 +151,19 @@ class DPML_Type_Table(DPML_Type):
             lines[l] = line.strip()
             if line=='': del lines[l]
         # Read table and assign its values to the nodes
-        ncols = len(nodes)
-        table = csv.reader(lines, delimiter=' ')
-        for row in table:
+        ncols = len(table)
+        csvtab = csv.reader(lines, delimiter=' ')
+        for row in csvtab:
             if len(row)>ncols or len(row)<ncols:
                 raise Exception(f"Number of header nodes does not match number of table columns: {ncols} != {len(row)}")
             for c in range(ncols):
-                nodes[c].value.append(row[c])
+                table[c].value.append(row[c])
         # set additional node parameters
-        for node in nodes:
+        for node in table:
             nvalues = len(node.value)
             node.dimension = [(nvalues,nvalues)]
             node.name = self.name+'.'+node.name
             node.comments = ''
             node.indent = self.indent
+            nodes.append(node)
         return nodes

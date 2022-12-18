@@ -49,18 +49,7 @@ class DPML_Node(BaseModel):
             self.parser.get_import()
             self.parser.get_comment()
             self.node = DPML_Type_Import(self.parser)
-
-    def _node_injection(self):
-        m=re.match(r'^([a-zA-Z0-9_.-]*\s*)\(([a-zA-Z0-9_.-]*[*]?)\)', self.parser.ccode)
-        if m:
-            if m.group(1):
-                self.parser.get_name()
-                self.parser.name = self.parser.name
-                self.parser.ccode = self.parser.ccode.lstrip()
-            self.parser.get_injection()
-            self.parser.get_comment()
-            self.node = DPML_Type_Injection(self.parser)
-
+   
     def _node_option(self):
         m=re.match(r'^=\s*', self.parser.ccode)
         if m:           
@@ -92,7 +81,6 @@ class DPML_Node(BaseModel):
             self._node_empty,         # parse empty line node
             self.parser.get_indent,   # parse line indent
             self._node_import,        # parse import node
-            self._node_injection,     # parse injection node
             self._node_comment,       # parse comment node
             self._node_option,        # parse option node
             self.parser.get_name,     # parse node name
