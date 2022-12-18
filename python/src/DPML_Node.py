@@ -43,6 +43,7 @@ class DPML_Node(BaseModel):
     def _node_import(self):
         m=re.match(r'^([a-zA-Z0-9_.-]*\s*){(.*)}', self.parser.ccode)
         if m:
+            self.parser.keyword = 'import'
             if m.group(1):
                 self.parser.get_name()
                 self.parser.ccode = self.parser.ccode.lstrip()
@@ -66,6 +67,7 @@ class DPML_Node(BaseModel):
     def _node_mod(self):       # Parse modification without type
         m=re.match(r'^\s*=\s*', self.parser.ccode)
         if m:
+            self.parser.keyword = 'mod'
             self.parser.get_value()
             self.parser.get_units()
             self.parser.get_comment()

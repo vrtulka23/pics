@@ -3,6 +3,7 @@ from pydantic import BaseModel
 import re
 
 from DPML_Converter import *
+import ParseDPML
 
 class DPML_Parser(BaseModel):
     code: str 
@@ -83,17 +84,32 @@ class DPML_Parser(BaseModel):
     def get_import(self):
         m=re.match(r'^({(.*)})', self.ccode)
         if m:
-            if self.keyword:
-                with open(m.group(2),'r') as f:
-                    self.source = m.group(2)
-                    self.value = f.read()
-            else:
+            print(self.keyword)
+            if self.keyword=='import':
                 self.source = m.group(2)
                 self.value = m.group(2)
                 if self.name:
                     self.name = f"{self.name}.{m.group(1)}"
                 else:
                     self.name = f"{m.group(1)}"
+            else:
+                path = m.group(2)
+                if '?' in path:
+                    filename,query = path.split('?')
+                    with ParseDPML.ParseDPML() as p:
+                        p.load(filename)
+                        p.initialize()
+                        nodes = p.query(query)
+                        if len(nodes)==1:
+                            self.source = filename
+                            self.value = nodes[0].value_raw
+                            self.units = nodes[0].units
+                        else:
+                            raise Exception(f"Query returned multiple nodes for a value import: {query}")
+                else:
+                    with open(path,'r') as f:
+                        self.source = m.group(2)
+                        self.value = f.read()
             self._strip(m.group(1))
     
     def get_value(self):
