@@ -33,12 +33,18 @@ basket.bag {tests/blocks/nodes.txt}             # import into a namespace
 
 def test_query_remote():
     data = parse('''
+bag {tests/blocks/nodes.txt?*}                # import all
 bowl 
-  {tests/blocks/nodes.txt?fruits}             # selecting only specific node
-plate {tests/blocks/nodes.txt?vegies.*}       # selecting node tree
+  {tests/blocks/nodes.txt?fruits}             # selecting a specific node
+  {tests/blocks/nodes.txt?vegies.potato}      # selecting a specific subnode
+plate {tests/blocks/nodes.txt?vegies.*}       # selecting all subnodes
     ''')
     np.testing.assert_equal(data,{
+        'bag.fruits': 0,
+        'bag.vegies': 1,
+        'bag.vegies.potato': 200.0,
         'bowl.fruits': 0,
+        'bowl.potato': 200.0,
         'plate.potato': 200.0,
     })
     
@@ -51,8 +57,8 @@ icecream
     chocolate int = 2
 
 bowl 
-  {?icecream.scoops.*}      # select nodes from current file
-plate {?icecream.waffle}    # select node from current file
+  {?icecream.scoops.*}      # select subnodes from current file
+plate {?icecream.waffle}    # select specific node from current file
     ''')
     np.testing.assert_equal(data,{
         'icecream.waffle': 'standard',
@@ -65,7 +71,7 @@ plate {?icecream.waffle}    # select node from current file
     
 def test_import_matrix():
     data = parse('''
-blocks                                         # block imports into a group node
+blocks                                          # block imports into a group node
   matrix int[3][4] = {tests/blocks/matrix.txt}  # import a dimensional array
     ''')
     np.testing.assert_equal(data,{
@@ -74,7 +80,7 @@ blocks                                         # block imports into a group node
     
 def test_import_table():
     data = parse('''
-blocks                                         # block imports into a group node
+blocks                                          # block imports into a group node
   table table = {tests/blocks/table.txt}        # import a table
     ''')
     np.testing.assert_equal(data,{
@@ -84,7 +90,7 @@ blocks                                         # block imports into a group node
     
 def test_import_text():
     data = parse('''
-blocks                                         # block imports into a group node
+blocks                                          # block imports into a group node
   text str = {tests/blocks/text.txt}            # import large text
     ''')
     np.testing.assert_equal(data,{
