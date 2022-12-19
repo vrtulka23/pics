@@ -14,10 +14,10 @@ def parse(code):
 
 def test_import_nodes():
     data = parse('''
-{tests/blocks/nodes.txt}                        # base import
+{tests/blocks/nodes.dpml}                        # base import
 box
-  {tests/blocks/nodes.txt}                      # import into a group node
-basket.bag {tests/blocks/nodes.txt}             # import into a namespace
+  {tests/blocks/nodes.dpml}                      # import into a group node
+basket.bag {tests/blocks/nodes.dpml}             # import into a namespace
     ''')
     np.testing.assert_equal(data,{
         'fruits': 0,
@@ -33,11 +33,11 @@ basket.bag {tests/blocks/nodes.txt}             # import into a namespace
 
 def test_query_remote():
     data = parse('''
-bag {tests/blocks/nodes.txt?*}                # import all
+bag {tests/blocks/nodes.dpml?*}                # import all
 bowl 
-  {tests/blocks/nodes.txt?fruits}             # selecting a specific node
-  {tests/blocks/nodes.txt?vegies.potato}      # selecting a specific subnode
-plate {tests/blocks/nodes.txt?vegies.*}       # selecting all subnodes
+  {tests/blocks/nodes.dpml?fruits}             # selecting a specific node
+  {tests/blocks/nodes.dpml?vegies.potato}      # selecting a specific subnode
+plate {tests/blocks/nodes.dpml?vegies.*}       # selecting all subnodes
     ''')
     np.testing.assert_equal(data,{
         'bag.fruits': 0,
@@ -53,10 +53,10 @@ def test_query_local():
 icecream
   waffle str = 'standard'
   scoops
-    strawberry int = 1
+    strawberry int = 1 #some comment
     chocolate int = 2
 
-bowl 
+bowl
   {?icecream.scoops.*}      # select subnodes from current file
 plate {?icecream.waffle}    # select specific node from current file
     ''')
@@ -72,22 +72,23 @@ plate {?icecream.waffle}    # select specific node from current file
 def test_basic_value():
     data = parse('''
 energy float = 34 erg
-energy float = {tests/blocks/query.txt?energy}  # import as a type
-energy = {tests/blocks/query.txt?energy}        # import as a mod
+energy float = {tests/blocks/query.dpml?energy}  # import with a type
+energy = {tests/blocks/query.dpml?energy} eV     # import value only but set a different unit
+energy = {tests/blocks/query.dpml?energy}        # import both value and unit
     ''')
     np.testing.assert_equal(data,{
         'energy': 13.0e7           # converted to original units
     })
     with pytest.raises(Exception) as e_info:
-        parse('energy float = {tests/blocks/query.txt?*}')
+        parse('energy float = {tests/blocks/query.dpml?*}')
     print(e_info.value)
     assert e_info.value.args[0] == "Query returned multiple nodes for a value import: *"
     
 def test_import_matrix():
     data = parse('''
 blocks                          # block imports into a group node
-  matrix1 int[3][4] = {tests/blocks/matrix.txt}         # import a text file
-  matrix2 int[3][4] = {tests/blocks/query.txt?matrix}   # import value of a specific node
+  matrix1 int[3][4] = {tests/blocks/matrix.txt}          # import a text file
+  matrix2 int[3][4] = {tests/blocks/query.dpml?matrix}   # import value of a specific node
     ''')
     np.testing.assert_equal(data,{
         'blocks.matrix1': np.array([[4234,   34,   35,   34],[ 234,   34,  644,   43],[ 353, 2356,  234,    3]]),
@@ -97,8 +98,8 @@ blocks                          # block imports into a group node
 def test_import_table():
     data = parse('''
 blocks                             # block imports into a group node
-  table1 table = {tests/blocks/table.txt}        # import a text file
-  table2 table = {tests/blocks/query.txt?table}  # import value of a specific node
+  table1 table = {tests/blocks/table.txt}         # import a text file
+  table2 table = {tests/blocks/query.dpml?table}  # import value of a specific node
     ''')
     np.testing.assert_equal(data,{
         'blocks.table1.x': np.array([0.234, 1.355, 2.535, 3.255, 4.455]),
@@ -110,8 +111,8 @@ blocks                             # block imports into a group node
 def test_import_text():
     data = parse('''
 blocks                               # block imports into a group node
-  text1 str = {tests/blocks/text.txt}           # import a text file
-  text2 str = {tests/blocks/query.txt?text}     # import value of a specific node
+  text1 str = {tests/blocks/text.txt}            # import a text file
+  text2 str = {tests/blocks/query.dpml?text}     # import value of a specific node
     ''')
     np.testing.assert_equal(data,{
         'blocks.text1': 'This is a block text\nwith multiple lines\nthat will be loaded to a\nstring node.\n',
