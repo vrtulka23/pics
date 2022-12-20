@@ -50,7 +50,7 @@ plate {tests/blocks/nodes.dpml?vegies.*}       # selecting all subnodes
     
 def test_query_local():
     data = parse('''
-icecream
+icecream 
   waffle str = 'standard'
   scoops
     strawberry int = 1 #some comment

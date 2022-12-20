@@ -58,6 +58,26 @@ age float = 55
         ''')
     assert e_info.value.args[0] == "Datatype <class 'int'> of node 'age' cannot be changed to <class 'float'>"
 
+def test_option_units():
+    data = parse("""
+width float = 2 m
+  = 2 m
+  = 3 m
+width = 3000 mm
+    """)
+    np.testing.assert_equal(data,{
+        'width': 3.0
+    })
+    with pytest.raises(Exception) as e_info:
+        parse('''
+size float = 24 cm
+  = 24 cm
+  = 25 m
+size = 25 cm
+        ''')
+    assert e_info.value.args[0] == "Value '25.0' of node 'size' doesn't match with any option:"
+    assert e_info.value.args[1] == [None, 24.0, 2500.0]
+    
 if __name__ == "__main__":
     # Specify wich test to run
     test = sys.argv[1] if len(sys.argv)>1 else True

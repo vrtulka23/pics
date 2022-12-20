@@ -221,6 +221,9 @@ class ParseDPML:
                 # cast options
                 for option in node.options:
                     option.value = self._post_cast(option, node)
+                    if option.units and node.units and option.units!=node.units:
+                        with DPML_Converter() as p:
+                            option.value = p.convert(option.value, option.units, node.units)
                     options.append(option.value)
                 # check if node value is in options
                 if node.value not in options:
