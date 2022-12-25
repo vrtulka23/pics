@@ -58,6 +58,13 @@ class DPML_Node(BaseModel):
             self.parser.get_units()
             self.parser.get_comment()
             self.node = DPML_Type_Option(self.parser)
+
+    def _node_condition(self):
+        m=re.match(r'^@(case|else|end)', self.parser.ccode)
+        if m:
+            self.parser.get_condition()
+            self.parser.get_comment()
+            self.node = DPML_Type_Condition(self.parser)
             
     def _node_group(self):
         self.parser.get_comment()
@@ -85,6 +92,7 @@ class DPML_Node(BaseModel):
             self._node_import,        # parse import node
             self._node_comment,       # parse comment node
             self._node_option,        # parse option node
+            self._node_condition,     # parse condition node
             self.parser.get_name,     # parse node name
             self._node_group,         # parse group node
             self._node_mod,           # parse modification node

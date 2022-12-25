@@ -141,6 +141,46 @@ class ParseDPML:
                 nodes.append(node)
         self.nodes = nodes
 
+    def _condition_solve(self, expression):   # solve condition expression
+        if expression.strip()=='true':
+            return True
+        elif expression.strip()=='false':
+            return False
+        else:
+            raise Exception(f"Invalid condition: {expression}")
+    def resolve_conditions(self):
+        nodes = []
+        parent, flag = None, 0
+        while len(self.nodes)>0:
+            node = self.nodes.pop(0)
+            if node.keyword=='condition':
+                if not parent or not node.name.startswith(parent):
+                    if node.name[-5:]!='@case':
+                        raise Exception('Condition did not start with a @case node:', node.name)
+                    parent, flag = node.name[:-4], 0
+                if node.name.startswith(parent+'end'):
+                    parent, flag = None, 0
+                elif node.name.startswith(parent+'else'):
+                    flag += 1
+                else:
+                    cond = self._condition_solve(node.value_raw)
+                    if cond or flag==1:
+                        flag += 1
+            elif parent:
+                if node.name.startswith(parent):
+                    if flag==1:
+                        if node.name.startswith(parent+'case'):
+                            node.name = node.name.replace(parent+'case',parent[:-2])
+                        elif node.name.startswith(parent+'else'):
+                            node.name = node.name.replace(parent+'else',parent[:-2])
+                        nodes.append(node)
+                else:
+                    parent, flag = None, 0
+                    nodes.append(node)
+            else:
+                nodes.append(node)
+        self.nodes = nodes
+        
     # Change node names according to node hierarchy
     def set_hierarchy(self):
         indent, names = [-1], []
@@ -149,10 +189,11 @@ class ParseDPML:
                 continue
             while node.indent<=indent[-1]:
                 indent.pop()
-                names.pop()                    
-            names = names+[node.name]
-            indent = indent+[node.indent]
+                names.pop()
+            names.append(node.name)
+            indent.append(node.indent)
             node.name = ".".join(names)
+            print('h',node.name, node.value_raw)
         # remove group nodes
         nodes = []
         while len(self.nodes)>0:
@@ -267,6 +308,7 @@ class ParseDPML:
         self.set_options()                   # collect options
         self.remove_useless_nodes()          # remove empty nodes
         self.set_hierarchy()                 # set hierarchycal naming
+        self.resolve_conditions()            # resolve condition nodes
         self.parse_nodes()                   # parse nodes during initialization
 
     # Finalize all nodes

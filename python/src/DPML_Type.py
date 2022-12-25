@@ -84,6 +84,9 @@ class DPML_Type_String(DPML_Type):
     keyword: str = 'str'
     options: List[BaseModel] = []
 
+class DPML_Type_Condition(DPML_Type):
+    keyword: str = 'condition'
+    
 class DPML_Type_Import(DPML_Type):
     keyword: str = 'import'
 

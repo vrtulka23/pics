@@ -38,6 +38,23 @@ class DPML_Parser(BaseModel):
         if m:
             self.indent = len(m.group(1))
             self._strip(m.group(1))
+
+    def get_condition(self):
+        m=re.match(r'^((@case)\s+("""(.*)"""|([^#]*)))', self.ccode)
+        if m:
+            self.name = m.group(2)
+            if m.group(4):
+                self.value = m.group(4)
+            elif m.group(5):
+                self.value = m.group(5)
+            else:
+                raise Exception("Invalid condition format on line: ", self.code)
+            self._strip(m.group(1))
+        else:
+            m=re.match(r'^(@(else|end))', self.ccode)
+            if m:
+                self.name = m.group(1)
+                self._strip(m.group(1))
             
     def get_name(self):
         m=re.match(r'^([a-zA-Z0-9_.-]+)', self.ccode)
@@ -48,7 +65,7 @@ class DPML_Parser(BaseModel):
                 raise Exception("Name has an invalid format: "+self.code)
         else:
             raise Exception("Name has an invalid format: "+self.ccode)
-                    
+        
     def get_type(self):
         types = ['bool','int','float','str','table']
         for keyword in types:
