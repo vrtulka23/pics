@@ -28,10 +28,12 @@ def test_case():
         leaves int = 12304
       @end                      # case ends when explicitely terminated
 
-      @case false
+    plant.@case false           # using compact node names
         flower str = 'green'
-      @case true                # second condition is true
+    plant.@case true            # second condition is true
         flower str = 'yellow'   
+    plant.@else
+        flower str = 'red'
 
     animal
       @case false

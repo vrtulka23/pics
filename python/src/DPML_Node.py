@@ -60,7 +60,7 @@ class DPML_Node(BaseModel):
             self.node = DPML_Type_Option(self.parser)
 
     def _node_condition(self):
-        m=re.match(r'^@(case|else|end)', self.parser.ccode)
+        m=re.match(r'^[a-zA-Z0-9_.-]*@(case|else|end)', self.parser.ccode)
         if m:
             self.parser.get_condition()
             self.parser.get_comment()

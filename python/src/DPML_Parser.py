@@ -40,7 +40,7 @@ class DPML_Parser(BaseModel):
             self._strip(m.group(1))
 
     def get_condition(self):
-        m=re.match(r'^((@case)\s+("""(.*)"""|([^#]*)))', self.ccode)
+        m=re.match(r'^(([a-zA-Z0-9_.-]*@case)\s+("""(.*)"""|([^#]*)))', self.ccode)
         if m:
             self.name = m.group(2)
             if m.group(4):
@@ -51,7 +51,7 @@ class DPML_Parser(BaseModel):
                 raise Exception("Invalid condition format on line: ", self.code)
             self._strip(m.group(1))
         else:
-            m=re.match(r'^(@(else|end))', self.ccode)
+            m=re.match(r'^([a-zA-Z0-9_.-]*@(else|end))', self.ccode)
             if m:
                 self.name = m.group(1)
                 self._strip(m.group(1))
