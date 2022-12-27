@@ -109,6 +109,34 @@ class ParseDPML:
         for n,node in enumerate(self.nodes):
             self.nodes[n].comments = "\n".join(node.comments)
 
+    # Expand nodes that have a spetial feature
+    def _cast_value(self, src, node):
+        value = src.value if src.value else src.value_raw
+        if np.isscalar(value) and value in [None,'none','None']:
+            # validate none values
+            if node.defined:
+                raise Exception(f"Value of node '{node.name}' must be defined")
+            else:
+                value = None
+        elif node.dimension:
+            # cast multidimensional values
+            if isinstance(value, str):
+                value = np.array(json.loads(value), dtype=node.dtype)
+            else:
+                value = np.array(value, dtype=node.dtype)
+            # check if dimensions are correct
+            for d,dim in enumerate(node.dimension):
+                shape = value.shape[d]
+                if dim[0] is not None and shape < dim[0]:
+                    raise Exception(f"Node '{node.name}' has invalid dimension: dim({d})={shape} < {dim[0]}")
+                if dim[1] is not None and shape > dim[1]:
+                    raise Exception(f"Node '{node.name}' has invalid dimension: dim({d})={shape} > {dim[1]}")
+        else:
+            # cast scalar values
+            if value is not None:
+                value = node.dtype(value)
+        return value
+            
     # Combine options to preceeding nodes
     def set_options(self):
         # Collect options to correpsonding nodes
@@ -117,19 +145,56 @@ class ParseDPML:
             node = self.nodes.pop(0)
             if node.keyword=='option':
                 if nodes[-1].options is not None:
-                    nodes[-1].options.append( node )
+                    if not nodes[-1].defined and None not in nodes[-1].options:
+                        nodes[-1].options.append( None )
+                    optval = self._cast_value(node, nodes[-1])
+                    if node.units and nodes[-1].units and node.units!=nodes[-1].units:
+                        with DPML_Converter() as p:
+                            optval = p.convert(optval, node.units, nodes[-1].units)
+                    nodes[-1].options.append( optval )
                 else:
                     raise Exception(f"Node '{nodes[-1].keyword}' does not support options")
             else:
                 nodes.append(node)
         self.nodes = nodes
 
-    # Expand nodes that have a spetial feature
+    def _check_options(self, node):
+        # parse options
+        if node.options:
+            # check if node value is in options
+            if node.value not in node.options:
+                raise Exception(f"Value '{node.value}' of node '{node.name}' doesn't match with any option:", node.options)
+        return True
+    
+    def _modification(self, nodes, mod):
+        for n, node in enumerate(nodes):
+            if node.name==mod.name and '@' not in mod.name:
+                value = self._cast_value(mod, node)
+                if mod.keyword!='mod' and mod.dtype!=node.dtype:
+                    raise Exception(f"Datatype {node.dtype} of node '{node.name}' cannot be changed to {mod.dtype}")
+                # convert mod units to node units if necessary
+                if node.units and mod.units and node.units!=mod.units:
+                    with DPML_Converter() as p:
+                        value = p.convert(value, mod.units, node.units)
+                nodes[n].value = value
+                self._check_options(nodes[n])
+                return True
+        return False
+    
     def parse_nodes(self):
         nodes = []
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
-            nodes = node.parse(nodes)
+            # Perform specific node parsing
+            parsed = node.parse(nodes)
+            if parsed:
+                self.nodes = parsed + self.nodes
+                continue
+            node.value = self._cast_value(node, node)
+            self._check_options(node)
+            modify = self._modification(nodes, node)
+            if modify is False:
+                nodes.append(node)
         self.nodes = nodes
                 
     # Remove empty nodes and lonely comments
@@ -202,73 +267,6 @@ class ParseDPML:
                 continue
             nodes.append(node)
         self.nodes = nodes
-
-    # Add modifications to nodes
-    def set_modifications(self):
-        nodes = {}
-        while len(self.nodes)>0:
-            node = self.nodes.pop(0)
-            if node.name in nodes:
-                nodes[node.name].mods.append( node )
-            else:    
-                nodes[node.name] = node
-        self.nodes = nodes
-
-    # Process values
-    def _post_cast(self, src, node):
-        value = src.value if src.value else src.value_raw
-        if np.isscalar(value) and value in [None,'none','None']:
-            # validate none values
-            if node.defined:
-                raise Exception(f"Value of node '{node.name}' must be defined")
-            else:
-                value = None
-        elif node.dimension:
-            # cast multidimensional values
-            if isinstance(value, str):
-                value = np.array(json.loads(value), dtype=node.dtype)
-            else:
-                value = np.array(value, dtype=node.dtype)
-            # check if dimensions are correct
-            for d,dim in enumerate(node.dimension):
-                shape = value.shape[d]
-                if dim[0] is not None and shape < dim[0]:
-                    raise Exception(f"Node '{node.name}' has invalid dimension: dim({d})={shape} < {dim[0]}")
-                if dim[1] is not None and shape > dim[1]:
-                    raise Exception(f"Node '{node.name}' has invalid dimension: dim({d})={shape} > {dim[1]}")
-        else:
-            # cast scalar values
-            if value is not None:
-                value = node.dtype(value)
-        return value
-    def process_values(self):
-        for key,node in self.nodes.items():
-            # cast definition value
-            node.value = self._post_cast(node, node)
-            # cast modifications
-            if node.mods:
-                for mod in node.mods:
-                    value = self._post_cast(mod, node)
-                    if mod.keyword!='mod' and  mod.dtype!=node.dtype:
-                        raise Exception(f"Datatype {node.dtype} of node '{node.name}' cannot be changed to {mod.dtype}")
-                    # convert mod units to node units if necessary
-                    if node.units and mod.units and node.units!=mod.units:
-                        with DPML_Converter() as p:
-                            value = p.convert(value, mod.units, node.units)
-                    node.value = value
-            # parse options
-            if node.options:
-                options = [] if node.defined else [None]
-                # cast options
-                for option in node.options:
-                    option.value = self._post_cast(option, node)
-                    if option.units and node.units and option.units!=node.units:
-                        with DPML_Converter() as p:
-                            option.value = p.convert(option.value, option.units, node.units)
-                    options.append(option.value)
-                # check if node value is in options
-                if node.value not in options:
-                    raise Exception(f"Value '{node.value}' of node '{node.name}' doesn't match with any option:",options)
     
     def query(self,query):
         nodes = []
@@ -289,7 +287,8 @@ class ParseDPML:
         if len(nodes)==0:
             raise Exception(f"Cannot find node '{query}'")
         return nodes        
-    
+
+    # Read DPML code from a file
     def load(self, filepath):
         with open(filepath,'r') as f:
             self.lines += f.read().split('\n')
@@ -307,14 +306,20 @@ class ParseDPML:
         self.combine_comments()              # combine comments
         self.set_options()                   # collect options
         self.remove_useless_nodes()          # remove empty nodes
-        self.set_hierarchy()                 # set hierarchycal naming
-        self.resolve_conditions()            # resolve condition nodes
+        self.set_hierarchy()                 # set hierarchical naming
         self.parse_nodes()                   # parse nodes during initialization
 
     # Finalize all nodes
     def finalize(self):
-        self.set_modifications()             # set_modifications
-        self.process_values()                # cast and validate node values              
+        self.resolve_conditions()            # resolve condition nodes
+        #self.set_modifications()             # set_modifications
+        #self.process_values()                # cast and validate node values
+        nodes = {}
+        while len(self.nodes)>0:
+            node = self.nodes.pop(0)
+            nodes[node.name] = node
+        self.nodes = nodes
+
         
     # Display final nodes
     def display(self):
@@ -324,7 +329,7 @@ class ParseDPML:
                   '|',repr(node.units), end='')
             if hasattr(node,'options'):
                 if node.options:
-                    print(' |',[o.value for o in node.options], end='')
+                    print(' |',node.options, end='') #[o.value for o in node.options], end='')
             print()
 
     # Produce final data structure

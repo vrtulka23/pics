@@ -32,7 +32,7 @@ def test_case():
         flower str = 'green'
     plant.@case true            # second condition is true
         flower str = 'yellow'   
-    plant.@else
+    plant.@else                 # else is not triggered
         flower str = 'red'
 
     animal

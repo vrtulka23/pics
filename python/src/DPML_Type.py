@@ -45,8 +45,7 @@ class DPML_Type(BaseModel):
         super().__init__(**kwargs)
 
     def parse(self, nodes):
-        nodes.append(self)
-        return nodes
+        return False
         
 class DPML_Type_Empty(DPML_Type):
     keyword: str = 'empty'
@@ -103,6 +102,7 @@ class DPML_Type_Import(DPML_Type):
             else:         # use values parsed in the current file
                 p.nodes = nodes
             # Add proper indent and hierarchy
+            nodes_new = []
             for node in p.query(query):
                 path = self.name.split('.{')
                 path.pop()
@@ -111,8 +111,8 @@ class DPML_Type_Import(DPML_Type):
                 node.line = self.line
                 node.name = ".".join(path)
                 node.indent = node.indent+self.indent
-                nodes.append(node)
-        return nodes
+                nodes_new.append(node)
+        return nodes_new
 
 class DPML_Type_Table(DPML_Type):
     keyword: str = 'table'
@@ -162,11 +162,12 @@ class DPML_Type_Table(DPML_Type):
             for c in range(ncols):
                 table[c].value.append(row[c])
         # set additional node parameters
+        nodes_new = []
         for node in table:
             nvalues = len(node.value)
             node.dimension = [(nvalues,nvalues)]
             node.name = self.name+'.'+node.name
             node.comments = ''
             node.indent = self.indent
-            nodes.append(node)
-        return nodes
+            nodes_new.append(node)
+        return nodes_new
