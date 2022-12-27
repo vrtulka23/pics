@@ -180,31 +180,13 @@ class ParseDPML:
                 self._check_options(nodes[n])
                 return True
         return False
-    
-    def parse_nodes(self):
-        nodes = []
-        while len(self.nodes)>0:
-            node = self.nodes.pop(0)
-            # Perform specific node parsing
-            parsed = node.parse(nodes)
-            if parsed:
-                self.nodes = parsed + self.nodes
-                continue
-            node.value = self._cast_value(node, node)
-            self._check_options(node)
-            modify = self._modification(nodes, node)
-            if modify is False:
-                nodes.append(node)
-        self.nodes = nodes
-                
-    # Remove empty nodes and lonely comments
-    def remove_useless_nodes(self):
-        nodes = []
-        while len(self.nodes)>0:
-            node = self.nodes.pop(0)
-            if node.keyword not in ['empty','comment']:
-                nodes.append(node)
-        self.nodes = nodes
+
+    def _add_node(self, nodes, node):
+        node.value = self._cast_value(node, node)
+        self._check_options(node)
+        modify = self._modification(nodes, node)
+        if modify is False:
+            nodes.append(node)
 
     def _condition_solve(self, expression):   # solve condition expression
         if expression.strip()=='true':
@@ -213,11 +195,19 @@ class ParseDPML:
             return False
         else:
             raise Exception(f"Invalid condition: {expression}")
-    def resolve_conditions(self):
+                
+    def parse_nodes(self):
         nodes = []
         parent, flag = None, 0
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
+            # Perform specific node parsing
+            parsed = node.parse(nodes)
+            if parsed:
+                # Add nodes to the queue and continue
+                self.nodes = parsed + self.nodes
+                continue
+            # Resolve conditions
             if node.keyword=='condition':
                 if not parent or not node.name.startswith(parent):
                     if node.name[-5:]!='@case':
@@ -238,14 +228,23 @@ class ParseDPML:
                             node.name = node.name.replace(parent+'case',parent[:-2])
                         elif node.name.startswith(parent+'else'):
                             node.name = node.name.replace(parent+'else',parent[:-2])
-                        nodes.append(node)
+                        self._add_node(nodes, node)
                 else:
                     parent, flag = None, 0
-                    nodes.append(node)
+                    self._add_node(nodes, node)
             else:
+                self._add_node(nodes, node)
+        self.nodes = nodes
+                
+    # Remove empty nodes and lonely comments
+    def remove_useless_nodes(self):
+        nodes = []
+        while len(self.nodes)>0:
+            node = self.nodes.pop(0)
+            if node.keyword not in ['empty','comment']:
                 nodes.append(node)
         self.nodes = nodes
-        
+
     # Change node names according to node hierarchy
     def set_hierarchy(self):
         indent, names = [-1], []
@@ -311,9 +310,6 @@ class ParseDPML:
 
     # Finalize all nodes
     def finalize(self):
-        self.resolve_conditions()            # resolve condition nodes
-        #self.set_modifications()             # set_modifications
-        #self.process_values()                # cast and validate node values
         nodes = {}
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
