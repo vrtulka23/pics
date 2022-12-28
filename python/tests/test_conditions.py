@@ -12,6 +12,64 @@ def parse(code):
         p.display()
         return p.data()
 
+def test_invalid_start():
+    with pytest.raises(Exception) as e_info:
+        parse('''
+        @end
+        ''')
+    assert e_info.value.args[0] == "Condition did not start with a @case node:"
+    assert e_info.value.args[1] == "@end"
+    with pytest.raises(Exception) as e_info:
+        parse('''
+        @else
+           car str = 'BMW'
+        ''')
+    assert e_info.value.args[0] == "Condition did not start with a @case node:"
+    assert e_info.value.args[1] == "@else"
+    with pytest.raises(Exception) as e_info:
+        parse('''
+        @case true
+          @end
+        ''')
+    assert e_info.value.args[0] == "Condition did not start with a @case node:"
+    assert e_info.value.args[1] == "@case.@end"
+    
+def test_nested_condition():
+    data = parse('''
+    @case false
+      flower str = 'rose'
+    @else
+      flower str = 'dandelion'
+      @case false
+        color str = 'red'
+      @case false
+        color str = 'blue'
+      @else
+        @case true
+          leaves int = 234
+        color str = 'yellow'
+    tree str = 'maple'
+    ''')
+    np.testing.assert_equal(data,{
+        'flower': 'dandelion',
+        'leaves': 234,
+        'color': 'yellow',
+        'tree': 'maple'
+    })
+    
+def test_modifications():
+    data = parse('''
+    star str = 'Sun'
+
+    @case false
+      star = 'Sirius'
+    @else
+      star = 'Wega'
+    ''')
+    np.testing.assert_equal(data,{
+        'star': 'Wega',
+    })
+    
 def test_case():
     data = parse('''
     climate

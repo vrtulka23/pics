@@ -110,7 +110,9 @@ class ParseDPML:
             self.nodes[n].comments = "\n".join(node.comments)
 
     # Expand nodes that have a spetial feature
-    def _cast_value(self, src, node):
+    def _cast_value(self, src, node=None):
+        if node is None:
+            node = src
         value = src.value if src.value else src.value_raw
         if np.isscalar(value) and value in [None,'none','None']:
             # validate none values
@@ -182,7 +184,7 @@ class ParseDPML:
         return False
 
     def _add_node(self, nodes, node):
-        node.value = self._cast_value(node, node)
+        node.value = self._cast_value(node)
         self._check_options(node)
         modify = self._modification(nodes, node)
         if modify is False:
@@ -195,10 +197,20 @@ class ParseDPML:
             return False
         else:
             raise Exception(f"Invalid condition: {expression}")
-                
+
+    def _remove_case_name(self,cname,name):
+        for i in range(1,len(cname)):
+            if name.startswith(cname[-i]+'case'):
+                name = name.replace(cname[-i]+'case',cname[-i][:-2])
+            elif name.startswith(cname[-i]+'else'):
+                name = name.replace(cname[-i]+'else',cname[-i][:-2])
+            if name[0]=='.':
+                name = name[1:]
+        return name
+        
     def parse_nodes(self):
         nodes = []
-        parent, flag = None, 0
+        cname, cnum = [''], [0]
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
             # Perform specific node parsing
@@ -209,28 +221,30 @@ class ParseDPML:
                 continue
             # Resolve conditions
             if node.keyword=='condition':
-                if not parent or not node.name.startswith(parent):
+                if node.name[-5:]=='@case':
+                    if cname[-1]=='' or cname[-1]+'case'!=node.name:
+                        cname.append(node.name[:-4])
+                        cnum.append(0)                    
+                if node.name.startswith(cname[-1]+'end'):
+                    cname.pop()
+                    cnum.pop()
+                elif node.name.startswith(cname[-1]+'else'):
+                    cnum[-1] += 1
+                else:
                     if node.name[-5:]!='@case':
                         raise Exception('Condition did not start with a @case node:', node.name)
-                    parent, flag = node.name[:-4], 0
-                if node.name.startswith(parent+'end'):
-                    parent, flag = None, 0
-                elif node.name.startswith(parent+'else'):
-                    flag += 1
-                else:
                     cond = self._condition_solve(node.value_raw)
-                    if cond or flag==1:
-                        flag += 1
-            elif parent:
-                if node.name.startswith(parent):
-                    if flag==1:
-                        if node.name.startswith(parent+'case'):
-                            node.name = node.name.replace(parent+'case',parent[:-2])
-                        elif node.name.startswith(parent+'else'):
-                            node.name = node.name.replace(parent+'else',parent[:-2])
+                    if cond or cnum[-1]==1:
+                        cnum[-1] += 1
+            elif cname[-1]:
+                if node.name.startswith(cname[-1]):
+                    if cnum[-1]==1:
+                        node.name = self._remove_case_name(cname, node.name)
                         self._add_node(nodes, node)
                 else:
-                    parent, flag = None, 0
+                    cname.pop()
+                    cnum.pop()
+                    node.name = self._remove_case_name(cname, node.name)
                     self._add_node(nodes, node)
             else:
                 self._add_node(nodes, node)
