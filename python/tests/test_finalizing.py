@@ -57,6 +57,12 @@ age int = 34 a
 age float = 55
         ''')
     assert e_info.value.args[0] == "Datatype <class 'int'> of node 'age' cannot be changed to <class 'float'>"
+    with pytest.raises(Exception) as e_info:
+        parse('''
+weight = 23 kg
+        ''')
+    assert e_info.value.args[0] == "Modifying undefined node:"
+    assert e_info.value.args[1] == "weight"
 
 def test_option_units():
     data = parse("""

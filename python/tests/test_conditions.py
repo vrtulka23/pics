@@ -17,21 +17,21 @@ def test_invalid_start():
         parse('''
         @end
         ''')
-    assert e_info.value.args[0] == "Condition did not start with a @case node:"
+    assert e_info.value.args[0] == "Invalid condition:"
     assert e_info.value.args[1] == "@end"
     with pytest.raises(Exception) as e_info:
         parse('''
         @else
            car str = 'BMW'
         ''')
-    assert e_info.value.args[0] == "Condition did not start with a @case node:"
+    assert e_info.value.args[0] == "Invalid condition:"
     assert e_info.value.args[1] == "@else"
     with pytest.raises(Exception) as e_info:
         parse('''
         @case true
           @end
         ''')
-    assert e_info.value.args[0] == "Condition did not start with a @case node:"
+    assert e_info.value.args[0] == "Invalid condition:"
     assert e_info.value.args[1] == "@case.@end"
     
 def test_nested_condition():
@@ -54,7 +54,7 @@ def test_nested_condition():
         'flower': 'dandelion',
         'leaves': 234,
         'color': 'yellow',
-        'tree': 'maple'
+        'tree': 'maple',
     })
     
 def test_modifications():
@@ -63,11 +63,16 @@ def test_modifications():
 
     @case false
       star = 'Sirius'
+      nebula str = 'Orion'
     @else
       star = 'Wega'
+      nebula str = 'Crab'
+
+    nebula = 'Eagle'
     ''')
     np.testing.assert_equal(data,{
         'star': 'Wega',
+        'nebula': 'Eagle',
     })
     
 def test_case():

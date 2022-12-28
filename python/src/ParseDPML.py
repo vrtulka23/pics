@@ -80,133 +80,14 @@ class ParseDPML:
         for n,node in enumerate(self.nodes):
             self.nodes[n].value_raw = self._decode_symbols(node.value_raw)
             self.nodes[n].code = self._decode_symbols(node.code)
-        
-    # Group comment lines
-    def combine_comments(self):
-        # Group following comments
-        nodes = [self.nodes.pop(0)]
-        while len(self.nodes)>0:
-            node = self.nodes.pop(0)
-            if nodes[-1].keyword=='empty':
-                nodes.append(node)
-            elif nodes[-1].indent<node.indent and node.keyword=='comment':
-                nodes[-1].comments = nodes[-1].comments + node.comments
-            else:
-                nodes.append(node)
-        self.nodes = nodes
-        # Group preceeding comments
-        nodes = [self.nodes.pop(-1)]
-        while len(self.nodes)>0:
-            node = self.nodes.pop(-1)
-            if nodes[-1].keyword=='empty':
-                nodes.append(node)
-            elif nodes[-1].indent==node.indent and node.keyword=='comment':
-                nodes[-1].comments = node.comments + nodes[-1].comments
-            else:
-                nodes.append(node)            
-        self.nodes = list(reversed(nodes))
-        # Flatten comments lists
-        for n,node in enumerate(self.nodes):
-            self.nodes[n].comments = "\n".join(node.comments)
-
-    # Expand nodes that have a spetial feature
-    def _cast_value(self, src, node=None):
-        if node is None:
-            node = src
-        value = src.value if src.value else src.value_raw
-        if np.isscalar(value) and value in [None,'none','None']:
-            # validate none values
-            if node.defined:
-                raise Exception(f"Value of node '{node.name}' must be defined")
-            else:
-                value = None
-        elif node.dimension:
-            # cast multidimensional values
-            if isinstance(value, str):
-                value = np.array(json.loads(value), dtype=node.dtype)
-            else:
-                value = np.array(value, dtype=node.dtype)
-            # check if dimensions are correct
-            for d,dim in enumerate(node.dimension):
-                shape = value.shape[d]
-                if dim[0] is not None and shape < dim[0]:
-                    raise Exception(f"Node '{node.name}' has invalid dimension: dim({d})={shape} < {dim[0]}")
-                if dim[1] is not None and shape > dim[1]:
-                    raise Exception(f"Node '{node.name}' has invalid dimension: dim({d})={shape} > {dim[1]}")
-        else:
-            # cast scalar values
-            if value is not None:
-                value = node.dtype(value)
-        return value
-            
-    # Combine options to preceeding nodes
-    def set_options(self):
-        # Collect options to correpsonding nodes
-        nodes = [self.nodes.pop(0)]
-        while len(self.nodes)>0:
-            node = self.nodes.pop(0)
-            if node.keyword=='option':
-                if nodes[-1].options is not None:
-                    if not nodes[-1].defined and None not in nodes[-1].options:
-                        nodes[-1].options.append( None )
-                    optval = self._cast_value(node, nodes[-1])
-                    if node.units and nodes[-1].units and node.units!=nodes[-1].units:
-                        with DPML_Converter() as p:
-                            optval = p.convert(optval, node.units, nodes[-1].units)
-                    nodes[-1].options.append( optval )
-                else:
-                    raise Exception(f"Node '{nodes[-1].keyword}' does not support options")
-            else:
-                nodes.append(node)
-        self.nodes = nodes
-
-    def _check_options(self, node):
-        # parse options
-        if node.options:
-            # check if node value is in options
-            if node.value not in node.options:
-                raise Exception(f"Value '{node.value}' of node '{node.name}' doesn't match with any option:", node.options)
-        return True
-    
-    def _modification(self, nodes, mod):
-        for n, node in enumerate(nodes):
-            if node.name==mod.name and '@' not in mod.name:
-                value = self._cast_value(mod, node)
-                if mod.keyword!='mod' and mod.dtype!=node.dtype:
-                    raise Exception(f"Datatype {node.dtype} of node '{node.name}' cannot be changed to {mod.dtype}")
-                # convert mod units to node units if necessary
-                if node.units and mod.units and node.units!=mod.units:
-                    with DPML_Converter() as p:
-                        value = p.convert(value, mod.units, node.units)
-                nodes[n].value = value
-                self._check_options(nodes[n])
-                return True
-        return False
-
-    def _add_node(self, nodes, node):
-        node.value = self._cast_value(node)
-        self._check_options(node)
-        modify = self._modification(nodes, node)
-        if modify is False:
-            nodes.append(node)
-
-    def _condition_solve(self, expression):   # solve condition expression
+                    
+    def _condition_solve(self, nodes, expression):   # solve condition expression
         if expression.strip()=='true':
             return True
         elif expression.strip()=='false':
             return False
         else:
             raise Exception(f"Invalid condition: {expression}")
-
-    def _remove_case_name(self,cname,name):
-        for i in range(1,len(cname)):
-            if name.startswith(cname[-i]+'case'):
-                name = name.replace(cname[-i]+'case',cname[-i][:-2])
-            elif name.startswith(cname[-i]+'else'):
-                name = name.replace(cname[-i]+'else',cname[-i][:-2])
-            if name[0]=='.':
-                name = name[1:]
-        return name
         
     def parse_nodes(self):
         nodes = []
@@ -219,46 +100,50 @@ class ParseDPML:
                 # Add nodes to the queue and continue
                 self.nodes = parsed + self.nodes
                 continue
-            # Resolve conditions
-            if node.keyword=='condition':
-                if node.name[-5:]=='@case':
-                    if cname[-1]=='' or cname[-1]+'case'!=node.name:
+            if node.keyword=='option':        # Set node option
+                nodes[-1].set_option(node)
+            elif node.keyword in ['empty','comment']:
+                continue
+            elif node.keyword=='condition':   # Parse conditions
+                casename = cname[-1]
+                if node.name.endswith('@case'):
+                    if casename+'case'!=node.name:   # register new case
                         cname.append(node.name[:-4])
-                        cnum.append(0)                    
-                if node.name.startswith(cname[-1]+'end'):
-                    cname.pop()
-                    cnum.pop()
-                elif node.name.startswith(cname[-1]+'else'):
-                    cnum[-1] += 1
-                else:
-                    if node.name[-5:]!='@case':
-                        raise Exception('Condition did not start with a @case node:', node.name)
-                    cond = self._condition_solve(node.value_raw)
-                    if cond or cnum[-1]==1:
+                        cnum.append(0)                                        
+                    cond = self._condition_solve(nodes, node.value_raw)
+                    if cond or cnum[-1]==1: 
                         cnum[-1] += 1
-            elif cname[-1]:
-                if node.name.startswith(cname[-1]):
-                    if cnum[-1]==1:
-                        node.name = self._remove_case_name(cname, node.name)
-                        self._add_node(nodes, node)
-                else:
+                elif node.name==casename+'else':
+                    cnum[-1] += 1
+                elif node.name==casename+'end':
                     cname.pop()
                     cnum.pop()
-                    node.name = self._remove_case_name(cname, node.name)
-                    self._add_node(nodes, node)
+                else:
+                    raise Exception(f"Invalid condition:", node.name)
             else:
-                self._add_node(nodes, node)
+                # If part of a condition we need to do some extra steps
+                if cname[-1]:
+                    if cnum[-1]>1: # ignoring multiple valid cases
+                        continue    
+                    if not node.name.startswith(cname[-1]): # ending case
+                        cname.pop()
+                        cnum.pop()
+                    node.name = node.name.replace('@case.','')
+                    node.name = node.name.replace('@else.','')
+                # Set the node value
+                node.set_value()
+                # If node was previously defined, modify its value
+                for n in range(len(nodes)):
+                    if nodes[n].name==node.name:
+                        nodes[n].modify_value(node)
+                        break
+                # If node wasn't defined, create a new node
+                else:
+                    if node.keyword=='mod':
+                        raise Exception(f"Modifying undefined node:",node.name)
+                    nodes.append(node)
         self.nodes = nodes
                 
-    # Remove empty nodes and lonely comments
-    def remove_useless_nodes(self):
-        nodes = []
-        while len(self.nodes)>0:
-            node = self.nodes.pop(0)
-            if node.keyword not in ['empty','comment']:
-                nodes.append(node)
-        self.nodes = nodes
-
     # Change node names according to node hierarchy
     def set_hierarchy(self):
         indent, names = [-1], []
@@ -281,7 +166,7 @@ class ParseDPML:
             nodes.append(node)
         self.nodes = nodes
     
-    def query(self,query):
+    def query(self, query):
         nodes = []
         if query=='*':
             return self.nodes
@@ -316,9 +201,6 @@ class ParseDPML:
             if node:
                 self.nodes[n] = node
         self.decode_symbols()                # decode text symbols
-        self.combine_comments()              # combine comments
-        self.set_options()                   # collect options
-        self.remove_useless_nodes()          # remove empty nodes
         self.set_hierarchy()                 # set hierarchical naming
         self.parse_nodes()                   # parse nodes during initialization
 

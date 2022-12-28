@@ -46,6 +46,73 @@ class DPML_Type(BaseModel):
 
     def parse(self, nodes):
         return False
+
+    # Cast (raw-)value as a datatype self, or another node
+    def cast_value(self, node=None):
+        if node is None:
+            node = self
+        value = self.value if self.value else self.value_raw
+        if np.isscalar(value) and value in [None,'none','None']:
+            # validate none values
+            if node.defined:
+                raise Exception(f"Value of node '{node.name}' must be defined")
+            else:
+                value = None
+        elif node.dimension:
+            # cast multidimensional values
+            if isinstance(value, str):
+                value = np.array(json.loads(value), dtype=node.dtype)
+            else:
+                value = np.array(value, dtype=node.dtype)
+            # check if dimensions are correct
+            for d,dim in enumerate(node.dimension):
+                shape = value.shape[d]
+                if dim[0] is not None and shape < dim[0]:
+                    raise Exception(f"Node '{node.name}' has invalid dimension: dim({d})={shape} < {dim[0]}")
+                if dim[1] is not None and shape > dim[1]:
+                    raise Exception(f"Node '{node.name}' has invalid dimension: dim({d})={shape} > {dim[1]}")
+        else:
+            # cast scalar values
+            if value is not None:
+                value = node.dtype(value)
+        return value
+
+    # Set value using value_raw or arbitrary value
+    def set_value(self, value=None):
+        if value is None:
+            self.value = self.cast_value()
+        else:
+            self.value = value
+        # parse options
+        if self.options:
+            # check if node value is in options
+            if self.value not in self.options:
+                raise Exception(f"Value '{self.value}' of node '{self.name}' doesn't match with any option:", self.options)
+        return True
+
+    # Modify value taking value of a different node
+    def modify_value(self, node):
+        value = node.cast_value(self)
+        if node.keyword!='mod' and node.dtype!=self.dtype:
+            raise Exception(f"Datatype {self.dtype} of node '{self.name}' cannot be changed to {node.dtype}")
+        # convert mod units to node units if necessary
+        if self.units and node.units and self.units!=node.units:
+            with DPML_Converter() as p:
+                value = p.convert(value, node.units, self.units)
+        self.set_value(value)
+
+    # Set option using value of a different node
+    def set_option(self, node):
+        if self.options is not None:
+            if not self.defined and None not in self.options:
+                self.options.append( None )
+            optval = node.cast_value(self)
+            if node.units and self.units and node.units!=self.units:
+                with DPML_Converter() as p:
+                    optval = p.convert(optval, node.units, self.units)
+            self.options.append( optval )
+        else:
+            raise Exception(f"Node '{self.keyword}' does not support options")
         
 class DPML_Type_Empty(DPML_Type):
     keyword: str = 'empty'
