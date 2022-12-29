@@ -152,6 +152,14 @@ class DPML_Type_String(DPML_Type):
 
 class DPML_Type_Condition(DPML_Type):
     keyword: str = 'condition'
+
+    def parse(self, nodes):
+        # Solve condition
+        if self.name.endswith('@case'):
+            with ParseDPML.ParseDPML() as p:
+                p.nodes = nodes
+                self.value = p.expression(self.value_raw)
+        return None
     
 class DPML_Type_Import(DPML_Type):
     keyword: str = 'import'
@@ -177,7 +185,7 @@ class DPML_Type_Import(DPML_Type):
                 node.source = self.source
                 node.line = self.line
                 node.name = ".".join(path)
-                node.indent = node.indent+self.indent
+                node.indent = self.indent
                 nodes_new.append(node)
         return nodes_new
 

@@ -81,28 +81,30 @@ class ParseDPML:
             self.nodes[n].value_raw = self._decode_symbols(node.value_raw)
             self.nodes[n].code = self._decode_symbols(node.code)
                     
-    def _condition_solve(self, nodes, expression):   # solve condition expression
-        if expression.strip()=='true':
-            return True
-        elif expression.strip()=='false':
-            return False
-        else:
-            raise Exception(f"Invalid condition: {expression}")
-        
     def parse_nodes(self):
         nodes = []
         cname, cnum = [''], [0]
+        indents, parents = [-1], []
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
             # Perform specific node parsing
             parsed = node.parse(nodes)
-            if parsed:
+            if parsed: 
                 # Add nodes to the queue and continue
                 self.nodes = parsed + self.nodes
                 continue
+            # Create hierarchical name
+            if node.name is not None:
+                 while node.indent<=indents[-1]:
+                     indents.pop()
+                     parents.pop()
+                 parents.append(node.name)
+                 indents.append(node.indent)
+                 node.name = ".".join(parents)
+            # Add nodes to the list
             if node.keyword=='option':        # Set node option
                 nodes[-1].set_option(node)
-            elif node.keyword in ['empty','comment']:
+            elif node.keyword in ['empty','comment','group']:
                 continue
             elif node.keyword=='condition':   # Parse conditions
                 casename = cname[-1]
@@ -110,8 +112,7 @@ class ParseDPML:
                     if casename+'case'!=node.name:   # register new case
                         cname.append(node.name[:-4])
                         cnum.append(0)                                        
-                    cond = self._condition_solve(nodes, node.value_raw)
-                    if cond or cnum[-1]==1: 
+                    if node.value or cnum[-1]==1:
                         cnum[-1] += 1
                 elif node.name==casename+'else':
                     cnum[-1] += 1
@@ -143,29 +144,32 @@ class ParseDPML:
                         raise Exception(f"Modifying undefined node:",node.name)
                     nodes.append(node)
         self.nodes = nodes
-                
-    # Change node names according to node hierarchy
-    def set_hierarchy(self):
-        indent, names = [-1], []
-        for node in self.nodes:
-            if node.name is None:
-                continue
-            while node.indent<=indent[-1]:
-                indent.pop()
-                names.pop()
-            names.append(node.name)
-            indent.append(node.indent)
-            node.name = ".".join(names)
-            print('h',node.name, node.value_raw)
-        # remove group nodes
-        nodes = []
+                    
+    # Read DPML code from a file
+    def load(self, filepath):
+        with open(filepath,'r') as f:
+            self.lines += f.read().split('\n')
+    
+    # Prepare raw nodes
+    def initialize(self):
+        self.create_nodes()                  # determine nodes from lines
+        self.group_block_values()            # combine text blocks
+        self.encode_symbols()                # encode text symbols
+        for n,node in enumerate(self.nodes):
+            node = node.parse()              # process code
+            if node:
+                self.nodes[n] = node
+        self.decode_symbols()                # decode text symbols
+        self.parse_nodes()                   # parse nodes during initialization
+
+    # Finalize all nodes
+    def finalize(self):
+        nodes = {}
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
-            if node.keyword == 'group':
-                continue
-            nodes.append(node)
+            nodes[node.name] = node
         self.nodes = nodes
-    
+
     def query(self, query):
         nodes = []
         if query=='*':
@@ -186,32 +190,13 @@ class ParseDPML:
             raise Exception(f"Cannot find node '{query}'")
         return nodes        
 
-    # Read DPML code from a file
-    def load(self, filepath):
-        with open(filepath,'r') as f:
-            self.lines += f.read().split('\n')
-    
-    # Prepare raw nodes
-    def initialize(self):
-        self.create_nodes()                  # determine nodes from lines
-        self.group_block_values()            # combine text blocks
-        self.encode_symbols()                # encode text symbols
-        for n,node in enumerate(self.nodes):
-            node = node.parse()              # process code
-            if node:
-                self.nodes[n] = node
-        self.decode_symbols()                # decode text symbols
-        self.set_hierarchy()                 # set hierarchical naming
-        self.parse_nodes()                   # parse nodes during initialization
-
-    # Finalize all nodes
-    def finalize(self):
-        nodes = {}
-        while len(self.nodes)>0:
-            node = self.nodes.pop(0)
-            nodes[node.name] = node
-        self.nodes = nodes
-
+    def expression(self, expression):   # solve condition expression
+        if expression.strip()=='true':
+            return True
+        elif expression.strip()=='false':
+            return False
+        else:
+            raise Exception(f"Invalid condition: {expression}")        
         
     # Display final nodes
     def display(self):

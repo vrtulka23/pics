@@ -60,6 +60,7 @@ bowl
   {?icecream.scoops.*}      # select subnodes from current file
 plate {?icecream.waffle}    # select specific node from current file
     ''')
+    print(data)
     np.testing.assert_equal(data,{
         'icecream.waffle': 'standard',
         'icecream.scoops.strawberry': 1,
