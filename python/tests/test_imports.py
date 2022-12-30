@@ -71,13 +71,14 @@ plate {?icecream.waffle}    # select specific node from current file
 def test_value_local():
     data = parse('''
 size1 float = 34 cm
-size2 float = {?size1} m  # definition using import
+size2 float = {?size1} m  # definition using import with other units
+size3 float = {?size2}    # definition using import with same units
 size1 = {?size2}          # modifying by import
     ''')
-    print(data)
     np.testing.assert_equal(data,{
         'size1': 3400,  # 100 cm = 1 m 
         'size2': 34,    # m
+        'size3': 34,    # m
     })
 
 def test_value_remote():
