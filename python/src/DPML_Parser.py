@@ -16,12 +16,12 @@ class DPML_Parser(BaseModel):
     indent: int = 0
     name: str = None
     value: str = None
+    isimport: bool = False           # is value an import path?
     defined: bool = False
     units: str = None
     comment: str = None
     dimension: List[tuple] = None
     options: List[BaseModel] = None
-    mods: List[BaseModel] = []
 
     def __init__(self, **kwargs):
         kwargs['ccode'] = kwargs['code']
@@ -101,34 +101,20 @@ class DPML_Parser(BaseModel):
     def get_import(self):
         m=re.match(r'^({(.*)})', self.ccode)
         if m:
-            print(self.keyword)
-            if self.keyword=='import':
+            self.isimport = True 
+            self.value = m.group(2)
+            if '?' in m.group(2):
+                filename,query = m.group(2).split('?')
+                self.source = filename
+            else:
                 self.source = m.group(2)
-                self.value = m.group(2)
+            if self.keyword=='import':
                 if self.name:
                     self.name = f"{self.name}.{m.group(1)}"
                 else:
                     self.name = f"{m.group(1)}"
-            else:
-                path = m.group(2)
-                if '?' in path:
-                    filename,query = path.split('?')
-                    with ParseDPML.ParseDPML() as p:
-                        p.load(filename)
-                        p.initialize()
-                        nodes = p.query(query)
-                        if len(nodes)==1:
-                            self.source = filename
-                            self.value = nodes[0].value_raw
-                            self.units = nodes[0].units
-                        else:
-                            raise Exception(f"Query returned multiple nodes for a value import: {query}")
-                else:
-                    with open(path,'r') as f:
-                        self.source = m.group(2)
-                        self.value = f.read()
             self._strip(m.group(1))
-    
+
     def get_value(self):
         # Remove equal sign
         m=re.match(r'^(\s*=\s*)', self.ccode)

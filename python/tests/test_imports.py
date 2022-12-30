@@ -8,7 +8,6 @@ from ParseDPML import *
 def parse(code):
     with ParseDPML(code) as p:
         p.initialize()
-        p.finalize()
         p.display()
         return p.data()
 
@@ -70,7 +69,21 @@ plate {?icecream.waffle}    # select specific node from current file
         'plate.waffle': 'standard',
     })
 
-def test_basic_value():
+"""
+def test_value_local():
+    data = parse('''
+size1 float = 34.3 cm
+size2 float = {?size1} m  # from an existing node
+    ''')
+    print(data)
+    exit(0)
+    np.testing.assert_equal(data,{
+        'size1': 34.3,
+        'size2': 0.343,
+    })
+"""
+
+def test_value_remote():
     data = parse('''
 energy float = 34 erg
 energy float = {tests/blocks/query.dpml?energy}  # import with a type
@@ -82,7 +95,6 @@ energy = {tests/blocks/query.dpml?energy}        # import both value and unit
     })
     with pytest.raises(Exception) as e_info:
         parse('energy float = {tests/blocks/query.dpml?*}')
-    print(e_info.value)
     assert e_info.value.args[0] == "Query returned multiple nodes for a value import: *"
     
 def test_import_matrix():

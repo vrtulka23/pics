@@ -144,12 +144,7 @@ class ParseDPML:
                         raise Exception(f"Modifying undefined node:",node.name)
                     nodes.append(node)
         self.nodes = nodes
-                    
-    # Read DPML code from a file
-    def load(self, filepath):
-        with open(filepath,'r') as f:
-            self.lines += f.read().split('\n')
-    
+
     # Prepare raw nodes
     def initialize(self):
         self.create_nodes()                  # determine nodes from lines
@@ -161,15 +156,17 @@ class ParseDPML:
                 self.nodes[n] = node
         self.decode_symbols()                # decode text symbols
         self.parse_nodes()                   # parse nodes during initialization
+        
+    # Read DPML code from a file
+    def load(self, filepath):
+        with open(filepath,'r') as f:
+            self.lines += f.read().split('\n')
 
-    # Finalize all nodes
-    def finalize(self):
-        nodes = {}
-        while len(self.nodes)>0:
-            node = self.nodes.pop(0)
-            nodes[node.name] = node
+    # Use specific nodes
+    def use(self, nodes):
         self.nodes = nodes
 
+    # Select nodes according to a query
     def query(self, query):
         nodes = []
         if query=='*':
@@ -190,19 +187,39 @@ class ParseDPML:
             raise Exception(f"Cannot find node '{query}'")
         return nodes        
 
-    def expression(self, expression):   # solve condition expression
-        if expression.strip()=='true':
+    # Evaluate node value expression
+    def _eval_expr(self, expr):
+        parts = ['']
+        while expr:
+            if expr[:2] in ['==','!=','>=','<=','||','&&']:
+                parts[-1] = parts[-1].strip()
+                parts.append(expr[:2])
+                parts.append('')
+                expr = expr[2:]                
+            elif expr[0] in ['(',')','<','>','!']:
+                parts[-1] = parts[-1].strip()
+                parts.append(expr[0])
+                parts.append('')
+                expr = expr[1:]
+            else:
+                parts[-1] += expr[0]
+                expr = expr[1:]
+        parts = [p for p in parts if p != '']
+        print(parts)
+        
+    def expression(self, expr):   # solve condition expression
+        if expr.strip()=='true':
             return True
-        elif expression.strip()=='false':
+        elif expr.strip()=='false':
             return False
         else:
-            raise Exception(f"Invalid condition: {expression}")        
+            #return self._eval_expr(expr)
+            raise Exception(f"Invalid condition: {expr}")        
         
     # Display final nodes
     def display(self):
-        for node in self.nodes.values():
+        for node in self.nodes:
             print(node.name,'|',node.indent,'|',node.keyword,'|',repr(node.value),
-                  '|',repr(node.comments),
                   '|',repr(node.units), end='')
             if hasattr(node,'options'):
                 if node.options:
@@ -212,6 +229,6 @@ class ParseDPML:
     # Produce final data structure
     def data(self):
         data = {}
-        for name,node in self.nodes.items():
-            data[name] = node.value
+        for node in self.nodes:
+            data[node.name] = node.value
         return data

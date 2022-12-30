@@ -18,12 +18,11 @@ class DPML_Type(BaseModel):
     name: str = None
     value: str = None
     value_raw: str = None
+    isimport: bool = False
     defined: bool = False
     units: str = None
-    comments: List[str] = []
     dimension: List[tuple] = None
     options: List[BaseModel] = None
-    mods: List[BaseModel] = []
     
     def __init__(self, parser):
         kwargs = {}
@@ -32,16 +31,11 @@ class DPML_Type(BaseModel):
         kwargs['indent'] = parser.indent
         kwargs['code'] = parser.code
         kwargs['name'] = parser.name
-        if parser.value:
-            kwargs['value_raw'] = parser.value
-        if parser.units:
-            kwargs['units'] = parser.units
-        if parser.comment:
-            kwargs['comments'] = [ parser.comment ]
-        if parser.dimension:
-            kwargs['dimension'] = parser.dimension
-        if parser.defined:
-            kwargs['defined'] = parser.defined
+        kwargs['isimport'] = parser.isimport
+        kwargs['value_raw'] = parser.value
+        kwargs['units'] = parser.units
+        kwargs['dimension'] = parser.dimension
+        kwargs['defined'] = parser.defined
         super().__init__(**kwargs)
 
     def parse(self, nodes):
@@ -113,12 +107,48 @@ class DPML_Type(BaseModel):
             self.options.append( optval )
         else:
             raise Exception(f"Node '{self.keyword}' does not support options")
+
+    def import_nodes(self, nodes):
+        if not self.isimport:
+            raise Exception(f"Following node has no import:", self.code)
+        # Parse import code
+        if '?' in self.value_raw:
+            filename,query = self.value_raw.split('?')
+        else:
+            filename,query = self.value_raw,'*'
+        with ParseDPML.ParseDPML() as p:
+            if filename:  # open external file and parse the values
+                p.load(filename)
+                p.initialize()
+            else:         # use values parsed in the current file
+                p.use(nodes)
+            # Return iported nodes
+            return p.query(query)    
+
+    def import_value(self, nodes):
+        # Parse import code
+        if '?' in self.value_raw:
+            filename,query = self.value_raw.split('?')
+            nodes = self.import_nodes(nodes)
+            if len(nodes)==1:
+                self.value_raw = nodes[0].value_raw
+                self.units = nodes[0].units
+            else:
+                raise Exception(f"Query returned multiple nodes for a value import: {query}")
+        else:
+            with open(self.value_raw,'r') as f:
+                self.value_raw = f.read()
         
 class DPML_Type_Empty(DPML_Type):
     keyword: str = 'empty'
 
 class DPML_Type_Mod(DPML_Type):
     keyword: str = 'mod'
+
+    def parse(self, nodes):
+        if self.isimport:
+            self.import_value(nodes)        
+        return None    
 
 class DPML_Type_Group(DPML_Type):
     keyword: str = 'group'
@@ -133,6 +163,11 @@ class DPML_Type_Boolean(DPML_Type):
     keyword: str = 'bool'
     value: bool = None
     dtype = bool
+
+    def parse(self, nodes):
+        if self.isimport:
+            self.import_value(nodes)        
+        return None    
     
 class DPML_Type_Integer(DPML_Type):
     keyword: str = 'int'
@@ -140,15 +175,30 @@ class DPML_Type_Integer(DPML_Type):
     options: List[BaseModel] = []
     dtype = int
 
+    def parse(self, nodes):
+        if self.isimport:
+            self.import_value(nodes)        
+        return None    
+    
 class DPML_Type_Float(DPML_Type):
     keyword: str = 'float'
     value: float = None
     options: List[BaseModel] = []
     dtype = float
 
+    def parse(self, nodes):
+        if self.isimport:
+            self.import_value(nodes)        
+        return None    
+    
 class DPML_Type_String(DPML_Type):
     keyword: str = 'str'
     options: List[BaseModel] = []
+
+    def parse(self, nodes):
+        if self.isimport:
+            self.import_value(nodes)        
+        return None    
 
 class DPML_Type_Condition(DPML_Type):
     keyword: str = 'condition'
@@ -157,7 +207,7 @@ class DPML_Type_Condition(DPML_Type):
         # Solve condition
         if self.name.endswith('@case'):
             with ParseDPML.ParseDPML() as p:
-                p.nodes = nodes
+                p.use(nodes)
                 self.value = p.expression(self.value_raw)
         return None
     
@@ -166,33 +216,24 @@ class DPML_Type_Import(DPML_Type):
 
     def parse(self, nodes):
         # Parse import code
-        if '?' in self.value_raw:
-            filename,query = self.value_raw.split('?')
-        else:
-            filename,query = self.value_raw,'*'
-        with ParseDPML.ParseDPML() as p:
-            if filename:  # open external file and parse the values
-                p.load(filename)
-                p.initialize()
-            else:         # use values parsed in the current file
-                p.nodes = nodes
-            # Add proper indent and hierarchy
-            nodes_new = []
-            for node in p.query(query):
-                path = self.name.split('.{')
-                path.pop()
-                path.append(node.name)                
-                node.source = self.source
-                node.line = self.line
-                node.name = ".".join(path)
-                node.indent = self.indent
-                nodes_new.append(node)
+        nodes_new = []
+        for node in self.import_nodes(nodes):
+            path = self.name.split('.{')
+            path.pop()
+            path.append(node.name)                
+            node.source = self.source
+            node.line = self.line
+            node.name = ".".join(path)
+            node.indent = self.indent
+            nodes_new.append(node)
         return nodes_new
 
 class DPML_Type_Table(DPML_Type):
     keyword: str = 'table'
     
     def parse(self, nodes):
+        if self.isimport:
+            self.import_value(nodes)        
         lines = self.value_raw.split("\n")
         # Parse nodes from table header
         table = []
@@ -242,7 +283,6 @@ class DPML_Type_Table(DPML_Type):
             nvalues = len(node.value)
             node.dimension = [(nvalues,nvalues)]
             node.name = self.name+'.'+node.name
-            node.comments = ''
             node.indent = self.indent
             nodes_new.append(node)
         return nodes_new

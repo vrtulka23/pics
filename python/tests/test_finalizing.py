@@ -8,7 +8,6 @@ from ParseDPML import *
 def parse(code):
     with ParseDPML(code) as p:
         p.initialize()
-        p.finalize()
         p.display()
         return p.data()
 
