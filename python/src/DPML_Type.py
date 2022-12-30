@@ -132,7 +132,8 @@ class DPML_Type(BaseModel):
             nodes = self.import_nodes(nodes)
             if len(nodes)==1:
                 self.value_raw = nodes[0].value_raw
-                self.units = nodes[0].units
+                if not self.units:
+                    self.units = nodes[0].units
             else:
                 raise Exception(f"Query returned multiple nodes for a value import: {query}")
         else:
@@ -141,14 +142,6 @@ class DPML_Type(BaseModel):
         
 class DPML_Type_Empty(DPML_Type):
     keyword: str = 'empty'
-
-class DPML_Type_Mod(DPML_Type):
-    keyword: str = 'mod'
-
-    def parse(self, nodes):
-        if self.isimport:
-            self.import_value(nodes)        
-        return None    
 
 class DPML_Type_Group(DPML_Type):
     keyword: str = 'group'
@@ -159,6 +152,14 @@ class DPML_Type_Comment(DPML_Type):
 class DPML_Type_Option(DPML_Type):
     keyword: str = 'option'
     
+class DPML_Type_Mod(DPML_Type):
+    keyword: str = 'mod'
+
+    def parse(self, nodes):
+        if self.isimport:
+            self.import_value(nodes)        
+        return None    
+
 class DPML_Type_Boolean(DPML_Type):
     keyword: str = 'bool'
     value: bool = None

@@ -59,7 +59,6 @@ bowl
   {?icecream.scoops.*}      # select subnodes from current file
 plate {?icecream.waffle}    # select specific node from current file
     ''')
-    print(data)
     np.testing.assert_equal(data,{
         'icecream.waffle': 'standard',
         'icecream.scoops.strawberry': 1,
@@ -69,19 +68,17 @@ plate {?icecream.waffle}    # select specific node from current file
         'plate.waffle': 'standard',
     })
 
-"""
 def test_value_local():
     data = parse('''
-size1 float = 34.3 cm
-size2 float = {?size1} m  # from an existing node
+size1 float = 34 cm
+size2 float = {?size1} m  # definition using import
+size1 = {?size2}          # modifying by import
     ''')
     print(data)
-    exit(0)
     np.testing.assert_equal(data,{
-        'size1': 34.3,
-        'size2': 0.343,
+        'size1': 3400,  # 100 cm = 1 m 
+        'size2': 34,    # m
     })
-"""
 
 def test_value_remote():
     data = parse('''
