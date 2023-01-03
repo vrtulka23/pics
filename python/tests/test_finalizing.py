@@ -3,10 +3,10 @@ import pytest
 import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(sys.path[0]),'src'))
-from ParseDPML import *
+from DPML import *
 
 def parse(code):
-    with ParseDPML(code) as p:
+    with DPML(code) as p:
         p.initialize()
         p.display()
         return p.data()

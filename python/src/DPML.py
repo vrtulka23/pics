@@ -5,8 +5,9 @@ from typing import List
 
 from DPML_Node import *
 from DPML_Converter import *
+from DPML_Parser import *
 
-class ParseDPML:
+class DPML:
     lines: str
     nodes: List = []
     
@@ -82,13 +83,13 @@ class ParseDPML:
             self.nodes[n].code = self._decode_symbols(node.code)
                     
     def parse_nodes(self):
-        nodes = []
+        self.nodestmp = []
         cname, cnum = [''], [0]
         indents, parents = [-1], []
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
             # Perform specific node parsing
-            parsed = node.parse(nodes)
+            parsed = node.parse(self.nodestmp)
             if parsed: 
                 # Add nodes to the queue and continue
                 self.nodes = parsed + self.nodes
@@ -103,7 +104,7 @@ class ParseDPML:
                  node.name = ".".join(parents)
             # Add nodes to the list
             if node.keyword=='option':        # Set node option
-                nodes[-1].set_option(node)
+                self.nodestmp[-1].set_option(node)
             elif node.keyword in ['empty','comment','group']:
                 continue
             elif node.keyword=='condition':   # Parse conditions
@@ -134,16 +135,16 @@ class ParseDPML:
                 # Set the node value
                 node.set_value()
                 # If node was previously defined, modify its value
-                for n in range(len(nodes)):
-                    if nodes[n].name==node.name:
-                        nodes[n].modify_value(node)
+                for n in range(len(self.nodestmp)):
+                    if self.nodestmp[n].name==node.name:
+                        self.nodestmp[n].modify_value(node)
                         break
                 # If node wasn't defined, create a new node
                 else:
                     if node.keyword=='mod':
                         raise Exception(f"Modifying undefined node:",node.name)
-                    nodes.append(node)
-        self.nodes = nodes
+                    self.nodestmp.append(node)
+        self.nodes = self.nodestmp
 
     # Prepare raw nodes
     def initialize(self):
@@ -166,7 +167,7 @@ class ParseDPML:
     def use(self, nodes):
         self.nodes = nodes
 
-    # Select nodes according to a query
+    # Select local nodes according to a query
     def query(self, query):
         nodes = []
         if query=='*':
@@ -187,23 +188,88 @@ class ParseDPML:
             raise Exception(f"Cannot find node '{query}'")
         return nodes        
 
+    # Request nodes from a path
+    def request(self, path):
+        if '?' in path:
+            filename,query = path.split('?')
+        else:
+            filename,query = path,'*'
+        if filename:  # open external file and parse the values
+            with DPML() as p:
+                p.load(filename)
+                p.initialize()
+            return p.query(query)
+        else:         # use values parsed in the current file
+            if not self.nodes:
+                raise Exception(f"Local nodes are not available for DPML import:", path)
+            return self.query(query)
+
+    # Fill node with value from a path
+    def fill(self, node, path):
+        if '?' in path:
+            nodes = self.request(path)
+            if len(nodes)==1:
+                node.value_raw = nodes[0].value_raw
+                if not node.units:
+                    node.units = nodes[0].units
+            else:
+                raise Exception(f"Path returned multiple nodes for a value import:", path)
+        else:
+            with open(path,'r') as f:
+                node.value_raw = f.read()
+        return node
+        
     # Evaluate node value expression
+    def _eval_node(self, parts):
+        code = parts[-1].strip()
+        if code=='':
+            parts.pop()
+            return parts
+        p = DPML_Parser(
+            code=code,
+            line=0,
+            source='',
+            keyword='node'
+        )
+        p.get_value(equal_sign=False)
+        if p.isimport:
+            # Parse import code
+            if '?' in p.value:
+                filename,query = p.value.split('?')
+            else:
+                filename,query = p.value,'*'
+            with DPML() as pd:
+                if filename:  # open external file and parse the values
+                    pd.load(filename)
+                    pd.initialize()
+                else:         # use values parsed in the current file
+                    pd.use(self.nodes)
+                # Return iported nodes
+                nodes = pd.query(query)    
+            print(nodes[0])
+        else:
+            p.get_units()
+            node = DPML_Type(p)
+            print(node)
+        return parts
+    
     def _eval_expr(self, expr):
         parts = ['']
         while expr:
             if expr[:2] in ['==','!=','>=','<=','||','&&']:
-                parts[-1] = parts[-1].strip()
+                parts = self._eval_node(parts)
                 parts.append(expr[:2])
                 parts.append('')
                 expr = expr[2:]                
             elif expr[0] in ['(',')','<','>','!']:
-                parts[-1] = parts[-1].strip()
+                parts = self._eval_node(parts)
                 parts.append(expr[0])
                 parts.append('')
                 expr = expr[1:]
             else:
                 parts[-1] += expr[0]
                 expr = expr[1:]
+        parts = self._eval_node(parts)
         parts = [p for p in parts if p != '']
         print(parts)
         
@@ -213,8 +279,8 @@ class ParseDPML:
         elif expr.strip()=='false':
             return False
         else:
-            #return self._eval_expr(expr)
-            raise Exception(f"Invalid condition: {expr}")        
+            return self._eval_expr(expr)
+            #raise Exception(f"Invalid condition: {expr}")        
         
     # Display final nodes
     def display(self):

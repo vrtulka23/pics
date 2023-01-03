@@ -3,13 +3,12 @@ from pydantic import BaseModel
 import re
 
 from DPML_Converter import *
-import ParseDPML
 
 class DPML_Parser(BaseModel):
     code: str 
     ccode: str
-    line: int
-    source: str
+    line: int = None
+    source: str = None
 
     keyword: str = None
     dtype = str
@@ -115,13 +114,14 @@ class DPML_Parser(BaseModel):
                     self.name = f"{m.group(1)}"
             self._strip(m.group(1))
 
-    def get_value(self):
+    def get_value(self, equal_sign=True):
         # Remove equal sign
-        m=re.match(r'^(\s*=\s*)', self.ccode)
-        if m:
-            self._strip(m.group(1))
-        else:
-            raise Exception("Value has to be set after equal sign")
+        if equal_sign:
+            m=re.match(r'^(\s*=\s*)', self.ccode)
+            if m:
+                self._strip(m.group(1))
+            else:
+                raise Exception("Value has to be set after equal sign:", self.code)
         # Import block values if required
         self.get_import()
         if self.value:
@@ -135,7 +135,7 @@ class DPML_Parser(BaseModel):
             self.value = results[1]
             self._strip(m.group(1))
         if self.value is None:
-            raise Exception("Value has to be set after equal sign")
+            raise Exception("Value has to be set after equal sign:", self.code)
         
     def get_units(self):
         m=re.match(r'^(\s+([^\s#=]+))', self.ccode)

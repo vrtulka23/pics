@@ -3,10 +3,10 @@ import pytest
 import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(sys.path[0]),'src'))
-from ParseDPML import *
+from DPML import *
 
 def parse(code):
-    with ParseDPML(code) as p:
+    with DPML(code) as p:
         p.initialize()
         p.display()
         return p.data()
@@ -124,7 +124,7 @@ trafic
   urban bool = true
 
   # first case with inline conditions
-  @case {?limit} <= 50 km/s || {?urban}
+  @case {?trafic.limit} <= 50 km/s || {?trafic.urban}
 
     road str = 'town'
     stuff int = 1
@@ -132,8 +132,8 @@ trafic
 
   # second case with a block condition
   @case \"\"\"
-  ( {?limit} <= 100 km/s && {?limit} > 50 km/s )
-  && ! {?urban}
+  ( {?trafic.limit} <= 100 km/s && {?trafic.limit} > 50 km/s )
+  && ! {?trafic.urban}
   \"\"\"
 
     road str = 'country'
@@ -153,7 +153,7 @@ trafic
         'cars': 12,
     })
 """
-
+  
 if __name__ == "__main__":
     # Specify wich test to run
     test = sys.argv[1] if len(sys.argv)>1 else True

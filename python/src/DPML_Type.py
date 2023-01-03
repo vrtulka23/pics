@@ -5,7 +5,7 @@ import json
 import csv
 
 from DPML_Parser import *
-import ParseDPML
+import DPML
 
 class DPML_Type(BaseModel):
     code: str 
@@ -36,6 +36,8 @@ class DPML_Type(BaseModel):
         kwargs['units'] = parser.units
         kwargs['dimension'] = parser.dimension
         kwargs['defined'] = parser.defined
+        if parser.keyword:
+            kwargs['keyword'] = parser.keyword
         super().__init__(**kwargs)
 
     def parse(self, nodes):
@@ -107,38 +109,6 @@ class DPML_Type(BaseModel):
             self.options.append( optval )
         else:
             raise Exception(f"Node '{self.keyword}' does not support options")
-
-    def import_nodes(self, nodes):
-        if not self.isimport:
-            raise Exception(f"Following node has no import:", self.code)
-        # Parse import code
-        if '?' in self.value_raw:
-            filename,query = self.value_raw.split('?')
-        else:
-            filename,query = self.value_raw,'*'
-        with ParseDPML.ParseDPML() as p:
-            if filename:  # open external file and parse the values
-                p.load(filename)
-                p.initialize()
-            else:         # use values parsed in the current file
-                p.use(nodes)
-            # Return iported nodes
-            return p.query(query)    
-
-    def import_value(self, nodes):
-        # Parse import code
-        if '?' in self.value_raw:
-            filename,query = self.value_raw.split('?')
-            nodes = self.import_nodes(nodes)
-            if len(nodes)==1:
-                self.value_raw = nodes[0].value_raw
-                if not self.units:
-                    self.units = nodes[0].units
-            else:
-                raise Exception(f"Query returned multiple nodes for a value import: {query}")
-        else:
-            with open(self.value_raw,'r') as f:
-                self.value_raw = f.read()
         
 class DPML_Type_Empty(DPML_Type):
     keyword: str = 'empty'
@@ -157,7 +127,9 @@ class DPML_Type_Mod(DPML_Type):
 
     def parse(self, nodes):
         if self.isimport:
-            self.import_value(nodes)        
+            with DPML.DPML() as p:
+                p.use(nodes)
+                p.fill(self, self.value_raw)
         return None    
 
 class DPML_Type_Boolean(DPML_Type):
@@ -167,7 +139,9 @@ class DPML_Type_Boolean(DPML_Type):
 
     def parse(self, nodes):
         if self.isimport:
-            self.import_value(nodes)        
+            with DPML.DPML() as p:
+                p.use(nodes)
+                p.fill(self, self.value_raw)
         return None    
     
 class DPML_Type_Integer(DPML_Type):
@@ -178,7 +152,9 @@ class DPML_Type_Integer(DPML_Type):
 
     def parse(self, nodes):
         if self.isimport:
-            self.import_value(nodes)        
+            with DPML.DPML() as p:
+                p.use(nodes)
+                p.fill(self, self.value_raw)
         return None    
     
 class DPML_Type_Float(DPML_Type):
@@ -189,7 +165,9 @@ class DPML_Type_Float(DPML_Type):
 
     def parse(self, nodes):
         if self.isimport:
-            self.import_value(nodes)        
+            with DPML.DPML() as p:
+                p.use(nodes)
+                p.fill(self, self.value_raw)
         return None    
     
 class DPML_Type_String(DPML_Type):
@@ -198,7 +176,9 @@ class DPML_Type_String(DPML_Type):
 
     def parse(self, nodes):
         if self.isimport:
-            self.import_value(nodes)        
+            with DPML.DPML() as p:
+                p.use(nodes)
+                p.fill(self, self.value_raw)
         return None    
 
 class DPML_Type_Condition(DPML_Type):
@@ -207,7 +187,7 @@ class DPML_Type_Condition(DPML_Type):
     def parse(self, nodes):
         # Solve condition
         if self.name.endswith('@case'):
-            with ParseDPML.ParseDPML() as p:
+            with DPML.DPML() as p:
                 p.use(nodes)
                 self.value = p.expression(self.value_raw)
         return None
@@ -218,15 +198,17 @@ class DPML_Type_Import(DPML_Type):
     def parse(self, nodes):
         # Parse import code
         nodes_new = []
-        for node in self.import_nodes(nodes):
-            path = self.name.split('.{')
-            path.pop()
-            path.append(node.name)                
-            node.source = self.source
-            node.line = self.line
-            node.name = ".".join(path)
-            node.indent = self.indent
-            nodes_new.append(node)
+        with DPML.DPML() as p:
+            p.use(nodes)
+            for node in p.request(self.value_raw):
+                path = self.name.split('.{')
+                path.pop()
+                path.append(node.name)                
+                node.source = self.source
+                node.line = self.line
+                node.name = ".".join(path)
+                node.indent = self.indent
+                nodes_new.append(node)
         return nodes_new
 
 class DPML_Type_Table(DPML_Type):
@@ -234,7 +216,9 @@ class DPML_Type_Table(DPML_Type):
     
     def parse(self, nodes):
         if self.isimport:
-            self.import_value(nodes)        
+            with DPML.DPML() as p:
+                p.use(nodes)
+                p.fill(self,self.value_raw)
         lines = self.value_raw.split("\n")
         # Parse nodes from table header
         table = []

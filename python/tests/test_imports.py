@@ -3,10 +3,10 @@ import pytest
 import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(sys.path[0]),'src'))
-from ParseDPML import *
+from DPML import *
 
 def parse(code):
-    with ParseDPML(code) as p:
+    with DPML(code) as p:
         p.initialize()
         p.display()
         return p.data()
@@ -70,7 +70,7 @@ plate {?icecream.waffle}    # select specific node from current file
 
 def test_value_local():
     data = parse('''
-size1 float = 34 cm
+size1 float = 34 cm       # standard definition
 size2 float = {?size1} m  # definition using import with other units
 size3 float = {?size2}    # definition using import with same units
 size1 = {?size2}          # modifying by import
@@ -93,7 +93,8 @@ energy = {tests/blocks/query.dpml?energy}        # import both value and unit
     })
     with pytest.raises(Exception) as e_info:
         parse('energy float = {tests/blocks/query.dpml?*}')
-    assert e_info.value.args[0] == "Query returned multiple nodes for a value import: *"
+    assert e_info.value.args[0] == "Path returned multiple nodes for a value import:"
+    assert e_info.value.args[1] == "tests/blocks/query.dpml?*"
     
 def test_import_matrix():
     data = parse('''
