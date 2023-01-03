@@ -185,7 +185,7 @@ class DPML:
                     node.name = node.name.split('.')[-1]
                     nodes.append(node)
         if len(nodes)==0:
-            raise Exception(f"Cannot find node '{query}'")
+            raise Exception(f"Cannot find node:", query)
         return nodes        
 
     # Request nodes from a path
