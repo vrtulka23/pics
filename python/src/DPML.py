@@ -184,8 +184,6 @@ class DPML:
                     node = node.copy()
                     node.name = node.name.split('.')[-1]
                     nodes.append(node)
-        if len(nodes)==0:
-            raise Exception(f"Cannot find node:", query)
         return nodes        
 
     # Request nodes from a path
@@ -212,6 +210,8 @@ class DPML:
                 node.value_raw = nodes[0].value_raw
                 if not node.units:
                     node.units = nodes[0].units
+            elif len(nodes)==0:
+                raise Exception(f"Node was not found:", path)
             else:
                 raise Exception(f"Path returned multiple nodes for a value import:", path)
         else:
@@ -223,20 +223,26 @@ class DPML:
         expr = expr.strip()
         if expr=='':
             return None
+        defined = False
+        if expr[0]=='!':
+            defined = True
+            expr = expr[1:]
         # parse node from the code
-        p = DPML_Parser(
-            code=expr,
-            line=0,
-            source='',
-            keyword='node'
-        )
+        kwargs = {'code': expr, 'line':0, 'source': 'expression'}
+        p = DPML_Parser(keyword='node',**kwargs)
         p.get_value(equal_sign=False)
         if p.isimport:   # import existing node
             nodes = self.request(p.value)
             if len(nodes)==1:
-                return nodes[0]
+                if defined:
+                    return DPML_Type_Boolean(value_raw='true',**kwargs)
+                else:
+                    return nodes[0]
             elif len(nodes)==0:
-                return None
+                if defined:
+                    return DPML_Type_Boolean(value_raw='false',**kwargs)
+                else:
+                    return None
             else:
                 raise Exception(f"Path returned multiple nodes for a value import:", path)
         else:            # create anonymous node
@@ -267,35 +273,28 @@ class DPML:
                 raise Exception("Couldn't find all requested nodes:", expr)
             # perform comparison
             if left.keyword=='node':            # if left node datatype is unknown
-                left.value = left.cast_value(right)
-                if left.units and right.units and left.units!=right.units:
-                    with DPML_Converter() as p:
-                        left.value = p.convert(left.value, left.units, right.units)
+                left.set_value(left.cast_value(right))
+                left.convert_units(right)
+                right.set_value()
                 return fn(left.value, right.value)
             elif right.keyword=='node':         # if right node datatype is unknown
-                right.value = right.cast_value(left)
-                if right.units and left.units and right.units!=left.units:
-                    with DPML_Converter() as p:
-                        right.value = p.convert(right.value, right.units, left.units)
+                left.set_value()
+                right.set_value(right.cast_value(left))
+                right.convert_units(left)
                 return fn(left.value, right.value)
             elif left.keyword==right.keyword:   # if both datatypes are known
-                right.value = right.cast_value(left)
-                if right.units and left.units and right.units!=left.units:
-                    with DPML_Converter() as p:
-                        right.value = p.convert(right.value, right.units, left.units)
+                left.set_value()
+                right.set_value()
+                right.convert_units(left)
                 return fn(left.value, right.value)                
             else:                               # throw error if both datatypes are unknown
                 raise Exception("Invalid comparison:",expr)
         # evaluate single comparisons
-        if expr[0]=='!':                        # Check if node is defined
-            node = self._eval_node(expr[1:])
-            return True if node else False
-        else:                                   # Evaluate bool expressions
-            node = self._eval_node(expr)
-            if node.value_raw.strip()=='true':    return True
-            elif node.value_raw.strip()=='false': return False
-            else:
-                raise Exception("Single node expression needs to be a boolean:",expr)
+        node = self._eval_node(expr)
+        if node.value_raw.strip()=='true':    return True
+        elif node.value_raw.strip()=='false': return False
+        else:
+            raise Exception("Single node expression needs to be a boolean:",expr)
     def expression(self, expr):
         expr = expr.strip()
         # immediately return boolean values

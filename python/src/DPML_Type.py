@@ -24,20 +24,20 @@ class DPML_Type(BaseModel):
     dimension: List[tuple] = None
     options: List[BaseModel] = None
     
-    def __init__(self, parser):
-        kwargs = {}
-        kwargs['line'] = parser.line
-        kwargs['source'] = parser.source
-        kwargs['indent'] = parser.indent
-        kwargs['code'] = parser.code
-        kwargs['name'] = parser.name
-        kwargs['isimport'] = parser.isimport
-        kwargs['value_raw'] = parser.value
-        kwargs['units'] = parser.units
-        kwargs['dimension'] = parser.dimension
-        kwargs['defined'] = parser.defined
-        if parser.keyword:
-            kwargs['keyword'] = parser.keyword
+    def __init__(self, parser=None, **kwargs):
+        if parser:
+            kwargs['line'] = parser.line
+            kwargs['source'] = parser.source
+            kwargs['indent'] = parser.indent
+            kwargs['code'] = parser.code
+            kwargs['name'] = parser.name
+            kwargs['isimport'] = parser.isimport
+            kwargs['value_raw'] = parser.value
+            kwargs['units'] = parser.units
+            kwargs['dimension'] = parser.dimension
+            kwargs['defined'] = parser.defined
+            if parser.keyword:
+                kwargs['keyword'] = parser.keyword
         super().__init__(**kwargs)
 
     def parse(self, nodes):
@@ -86,30 +86,32 @@ class DPML_Type(BaseModel):
                 raise Exception(f"Value '{self.value}' of node '{self.name}' doesn't match with any option:", self.options)
         return True
 
-    # Modify value taking value of a different node
-    def modify_value(self, node):
-        value = node.cast_value(self)
-        if node.keyword!='mod' and node.dtype!=self.dtype:
-            raise Exception(f"Datatype {self.dtype} of node '{self.name}' cannot be changed to {node.dtype}")
-        # convert mod units to node units if necessary
+        # Convert unit to units of another node
+    def convert_units(self, node):
         if self.units and node.units and self.units!=node.units:
             with DPML_Converter() as p:
-                value = p.convert(value, node.units, self.units)
-        self.set_value(value)
+                self.value = p.convert(self.value, self.units, node.units)
+                self.units = node.units        
+
+    # Modify value taking value of a different node
+    def modify_value(self, node):
+        if node.keyword!='mod' and node.dtype!=self.dtype:
+            raise Exception(f"Datatype {self.dtype} of node '{self.name}' cannot be changed to {node.dtype}")
+        node.set_value(node.cast_value(self))
+        node.convert_units(self)
+        self.set_value(node.value)
 
     # Set option using value of a different node
     def set_option(self, node):
         if self.options is not None:
             if not self.defined and None not in self.options:
                 self.options.append( None )
-            optval = node.cast_value(self)
-            if node.units and self.units and node.units!=self.units:
-                with DPML_Converter() as p:
-                    optval = p.convert(optval, node.units, self.units)
-            self.options.append( optval )
+            node.set_value(node.cast_value(self))
+            node.convert_units(self)
+            self.options.append(node.value)
         else:
             raise Exception(f"Node '{self.keyword}' does not support options")
-        
+
 class DPML_Type_Empty(DPML_Type):
     keyword: str = 'empty'
 
