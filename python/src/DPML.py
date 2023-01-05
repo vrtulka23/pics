@@ -218,69 +218,127 @@ class DPML:
             with open(path,'r') as f:
                 node.value_raw = f.read()
         return node
-        
-    # Evaluate node value expression
-    def _eval_node(self, parts):
-        code = parts[-1].strip()
-        if code=='':
-            parts.pop()
-            return parts
+    
+    def _eval_node(self, expr):
+        expr = expr.strip()
+        if expr=='':
+            return None
+        # parse node from the code
         p = DPML_Parser(
-            code=code,
+            code=expr,
             line=0,
             source='',
             keyword='node'
         )
         p.get_value(equal_sign=False)
-        if p.isimport:
-            # Parse import code
-            if '?' in p.value:
-                filename,query = p.value.split('?')
+        if p.isimport:   # import existing node
+            nodes = self.request(p.value)
+            if len(nodes)==1:
+                return nodes[0]
+            elif len(nodes)==0:
+                return None
             else:
-                filename,query = p.value,'*'
-            with DPML() as pd:
-                if filename:  # open external file and parse the values
-                    pd.load(filename)
-                    pd.initialize()
-                else:         # use values parsed in the current file
-                    pd.use(self.nodes)
-                # Return iported nodes
-                nodes = pd.query(query)    
-            print(nodes[0])
-        else:
+                raise Exception(f"Path returned multiple nodes for a value import:", path)
+        else:            # create anonymous node
             p.get_units()
-            node = DPML_Type(p)
-            print(node)
-        return parts
-    
-    def _eval_expr(self, expr):
-        parts = ['']
-        while expr:
-            if expr[:2] in ['==','!=','>=','<=','||','&&']:
-                parts = self._eval_node(parts)
-                parts.append(expr[:2])
-                parts.append('')
-                expr = expr[2:]                
-            elif expr[0] in ['(',')','<','>','!']:
-                parts = self._eval_node(parts)
-                parts.append(expr[0])
-                parts.append('')
-                expr = expr[1:]
+            return DPML_Type(p)
+    def _eval_comparison(self, expr):
+        # return immediatelly if expression is a boolean
+        if isinstance(expr,(bool,np.bool_)):
+            return expr
+        expr = expr.strip()
+        # list of comparison opperators
+        comps = [
+            ('==', lambda a,b: a==b),
+            ('!=', lambda a,b: a!=b),
+            ('>=', lambda a,b: a>=b),
+            ('<=', lambda a,b: a<=b),
+            ('>',  lambda a,b: a>b ),
+            ('<',  lambda a,b: a<b ),
+        ]
+        # evaluate pair comparisions
+        for sign,fn in comps:
+            if sign not in expr:
+                continue
+            # parse left and right nodes
+            left,right = expr.split(sign)
+            left,right = self._eval_node(left),self._eval_node(right)
+            if not left or not right:
+                raise Exception("Couldn't find all requested nodes:", expr)
+            # perform comparison
+            if left.keyword=='node':            # if left node datatype is unknown
+                left.value = left.cast_value(right)
+                if left.units and right.units and left.units!=right.units:
+                    with DPML_Converter() as p:
+                        left.value = p.convert(left.value, left.units, right.units)
+                return fn(left.value, right.value)
+            elif right.keyword=='node':         # if right node datatype is unknown
+                right.value = right.cast_value(left)
+                if right.units and left.units and right.units!=left.units:
+                    with DPML_Converter() as p:
+                        right.value = p.convert(right.value, right.units, left.units)
+                return fn(left.value, right.value)
+            elif left.keyword==right.keyword:   # if both datatypes are known
+                right.value = right.cast_value(left)
+                if right.units and left.units and right.units!=left.units:
+                    with DPML_Converter() as p:
+                        right.value = p.convert(right.value, right.units, left.units)
+                return fn(left.value, right.value)                
+            else:                               # throw error if both datatypes are unknown
+                raise Exception("Invalid comparison:",expr)
+        # evaluate single comparisons
+        if expr[0]=='!':                        # Check if node is defined
+            node = self._eval_node(expr[1:])
+            return True if node else False
+        else:                                   # Evaluate bool expressions
+            node = self._eval_node(expr)
+            if node.value_raw.strip()=='true':    return True
+            elif node.value_raw.strip()=='false': return False
             else:
-                parts[-1] += expr[0]
-                expr = expr[1:]
-        parts = self._eval_node(parts)
-        parts = [p for p in parts if p != '']
-        print(parts)
-        
-    def expression(self, expr):   # solve condition expression
-        if expr.strip()=='true':
-            return True
-        elif expr.strip()=='false':
-            return False
-        else:
-            return self._eval_expr(expr)
-            #raise Exception(f"Invalid condition: {expr}")        
+                raise Exception("Single node expression needs to be a boolean:",expr)
+    def expression(self, expr):
+        expr = expr.strip()
+        # immediately return boolean values
+        if isinstance(expr,(bool,np.bool_)):
+            return expr
+        # check if parenthesis are properly terminated
+        elif expr.count('(')!=expr.count(')'):
+            raise Exception('Unterminated parenthesis in expression:', expr)
+        # evaluate logical && and || and parenthesis
+        ors, ands, buff = [], [], ''
+        while expr:
+            sign, expr = expr[0], expr[1:]
+            if sign=='(': # evaluate content of parenthesis separately
+                p = 1
+                while p>0 and expr:
+                    sign, expr = expr[0], expr[1:]
+                    if sign=='(':   p += 1
+                    elif sign==')' and p==1: break
+                    elif sign==')' and p>1: p -= 1
+                    buff = buff + sign
+                buff = self.expression(buff)   # evaluate in subroutine
+                expr = expr.lstrip()
+            elif expr and sign+expr[0]=='||':  # evaluate logical 'or' with priority
+                expr = expr[1:]                # skip the second pipe
+                if ands:                       # terminate openned 'and' clause
+                    ands.append(buff)
+                    buff = np.all([self._eval_comparison(a) for a in ands])
+                    ands = []
+                ors.append(buff)
+                buff = ''
+            elif expr and sign+expr[0]=='&&':  # evaluate logical 'and'
+                expr = expr[1:]                # skip the second ampersend
+                ands.append(buff)
+                buff = ''
+            elif sign in ['\n','\t']:          # remove special characters
+                continue
+            else:
+                buff = buff + sign             # add character to a buffer
+        if ands:                               # terminate last openned 'and' clause
+            ands.append(buff)
+            buff = np.all([self._eval_comparison(a) for a in ands])
+        ors.append(buff)                       # terminate 'or' clause
+        return np.any([self._eval_comparison(o) for o in ors])    
         
     # Display final nodes
     def display(self):

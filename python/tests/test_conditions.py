@@ -114,7 +114,6 @@ def test_case():
         'animal.cat': 'gepard',
     })
 
-"""
 def test_expression():
     data = parse('''
 trafic
@@ -127,14 +126,12 @@ trafic
   @case {?trafic.limit} <= 50 km/s || {?trafic.urban}
 
     road str = 'town'
-    stuff int = 1
-      substuff float = 1.3
 
   # second case with a block condition
-  @case \"\"\"
+  @case """
   ( {?trafic.limit} <= 100 km/s && {?trafic.limit} > 50 km/s )
-  && ! {?trafic.urban}
-  \"\"\"
+  && !{?trafic.urban}
+  """
 
     road str = 'country'
 
@@ -148,11 +145,11 @@ trafic
   cars int = 12  # outside of case
     ''')
     np.testing.assert_equal(data,{
-        'limit': 75,
-        'road': 'country',
-        'cars': 12,
+        'trafic.limit': 75,
+        'trafic.urban': True,
+        'trafic.road': 'town',
+        'trafic.cars': 12,
     })
-"""
   
 if __name__ == "__main__":
     # Specify wich test to run
