@@ -37,28 +37,72 @@ def test_compare_nodes():
     with DPML(code) as p:
         p.initialize()
         # node pair comparison
-        assert p.expression('{?dogs}=={?cats}') == False
-        assert p.expression('{?dogs}=={?birds}') == True
-        assert p.expression('{?dogs}!={?cats}') == True
-        assert p.expression('{?dogs}!={?birds}') == False
-        assert p.expression('{?dogs}<={?cats}') == True
-        assert p.expression('{?dogs}<={?birds}') == True
-        assert p.expression('{?dogs}<={?fish}') == False
-        assert p.expression('{?dogs}>={?cats}') == False
-        assert p.expression('{?dogs}>={?birds}') == True
-        assert p.expression('{?dogs}>={?fish}') == True
-        assert p.expression('{?dogs}<{?cats}') == True
-        assert p.expression('{?dogs}<{?fish}') == False
-        assert p.expression('{?dogs}>{?fish}') == True
-        assert p.expression('{?dogs}>{?cats}') == False
+        assert p.expression('{?dogs} == {?cats}') == False
+        assert p.expression('{?dogs} == {?birds}') == True
+        assert p.expression('{?dogs} != {?cats}') == True
+        assert p.expression('{?dogs} != {?birds}') == False
+        assert p.expression('{?dogs} <= {?cats}') == True
+        assert p.expression('{?dogs} <= {?birds}') == True
+        assert p.expression('{?dogs} <= {?fish}') == False
+        assert p.expression('{?dogs} >= {?cats}') == False
+        assert p.expression('{?dogs} >= {?birds}') == True
+        assert p.expression('{?dogs} >= {?fish}') == True
+        assert p.expression('{?dogs} <  {?cats}') == True
+        assert p.expression('{?dogs} <  {?fish}') == False
+        assert p.expression('{?dogs} >  {?fish}') == True
+        assert p.expression('{?dogs} >  {?cats}') == False
         # single bool node
         assert p.expression('{?animal}') == True
         assert p.expression('~{?animal}') == False   # negated value
         # is node defined
         assert p.expression('!{?dogs}') == True
         assert p.expression('!{?elefant}') == False
-        assert p.expression('!{?elefant}==false') == True
+        assert p.expression('!{?elefant} == false') == True
         assert p.expression('~!{?elefant}') == True  # negated value
+
+def test_compare_values():
+    code = """
+    weight float = 57.3 kg
+    """
+    with DPML(code) as p:
+        p.initialize()
+        # comparison with the same units
+        assert p.expression('{?weight} == 57.30 kg') == True
+        assert p.expression('{?weight} == 57.31 kg') == False
+        assert p.expression('{?weight} != 57.30 kg') == False
+        assert p.expression('{?weight} != 57.31 kg') == True
+        assert p.expression('{?weight} <= 57.30 kg') == True
+        assert p.expression('{?weight} <= 60 kg') == True
+        assert p.expression('{?weight} <= 50 kg') == False
+        # comparison with different units
+        assert p.expression('{?weight} >= 57300 g') == True
+        assert p.expression('{?weight} >= 50000 g') == True
+        assert p.expression('{?weight} >= 60000 g') == False
+        assert p.expression('{?weight} > 50000 g') == True
+        assert p.expression('{?weight} > 60000 g') == False
+        # comparison without specifying units
+        assert p.expression('{?weight} < 50') == False
+        assert p.expression('{?weight} < 60') == True
+
+def test_combination():
+    code = """
+    size float = 34 cm
+    geometry int = 2
+      = 1 # line
+      = 2 # square
+      = 3 # cube
+    filled bool = true
+    dimension int = 2
+    """
+    with DPML(code) as p:
+        p.initialize()
+        assert p.expression("""
+        {?size} > 30 cm 
+        || ({?size} < 0.4 m || {?size} >= 34) 
+        && ({?geometry} == 1 && {?geometry}<={?dimension})
+        && {?filled}
+        || ~!{?color}
+        """) == True
         
 if __name__ == "__main__":
     # Specify wich test to run

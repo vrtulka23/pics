@@ -2,6 +2,7 @@ import numpy as np
 import re
 import os
 from typing import List
+from math import isclose
 
 from DPML_Node import *
 from DPML_Converter import *
@@ -248,6 +249,10 @@ class DPML:
                     node = None
             else:
                 raise Exception(f"Path returned multiple nodes for a value import:", path)
+        elif p.value=='true':
+            node = DPML_Type_Boolean(value_raw='true',value=True,**kwargs)
+        elif p.value=='false':
+            node = DPML_Type_Boolean(value_raw='false',value=False,**kwargs)
         else:            # create anonymous node
             p.get_units()
             node = DPML_Type(p)
@@ -257,7 +262,7 @@ class DPML:
                 node.value = not node.value
                 node.value_raw = 'true' if node.value else 'false'
             else:
-                raise Exception(f"Negated node is not boolean but:",node.keyword)
+                raise Exception(f"Negated node is not boolean but:", node.keyword)
         return node
     def _eval_comparison(self, expr):
         # return immediatelly if expression is a boolean
@@ -266,10 +271,11 @@ class DPML:
         expr = expr.strip()
         # list of comparison opperators
         comps = [
-            ('==', lambda a,b: a==b),
+            # neglect python rounding errors using 'isclose' function
+            ('==', lambda a,b: isclose(a, b, rel_tol=1e-6)),  
             ('!=', lambda a,b: a!=b),
-            ('>=', lambda a,b: a>=b),
-            ('<=', lambda a,b: a<=b),
+            ('>=', lambda a,b: (a>b)|isclose(a, b, rel_tol=1e-6)),
+            ('<=', lambda a,b: (a<b)|isclose(a, b, rel_tol=1e-6)),
             ('>',  lambda a,b: a>b ),
             ('<',  lambda a,b: a<b ),
         ]
@@ -299,18 +305,14 @@ class DPML:
                 right.convert_units(left)
                 return fn(left.value, right.value)                
             else:                               # throw error if both datatypes are unknown
-                raise Exception("Invalid comparison:",expr)
+                raise Exception("Invalid comparison:", expr)
         # evaluate single comparisons
         node = self._eval_node(expr)
         node.set_value()
         if node.keyword=='bool':
             return node.value
-        elif node.value=='true':
-            return True
-        elif node.value=='false':
-            return False
         else:
-            raise Exception("Single node expression needs to be a boolean:",expr)
+            raise Exception("Single node expression needs to be a boolean:", expr)
     def expression(self, expr):
         expr = expr.strip()
         # immediately return boolean values

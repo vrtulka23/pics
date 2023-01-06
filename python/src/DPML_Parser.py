@@ -135,7 +135,7 @@ class DPML_Parser(BaseModel):
             self.value = results[1]
             self._strip(m.group(1))
         if self.value is None:
-            raise Exception("Value has to be set after equal sign:", self.code)
+            raise Exception("Value cannot start with an empty string:", self.code)
         
     def get_units(self):
         m=re.match(r'^(\s+([^\s#=]+))', self.ccode)
