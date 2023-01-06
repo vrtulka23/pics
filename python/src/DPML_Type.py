@@ -128,9 +128,6 @@ class DPML_Type_Empty(DPML_Type):
 class DPML_Type_Group(DPML_Type):
     keyword: str = 'group'
 
-class DPML_Type_Comment(DPML_Type):
-    keyword: str = 'comment'
-
 class DPML_Type_Option(DPML_Type):
     keyword: str = 'option'
     

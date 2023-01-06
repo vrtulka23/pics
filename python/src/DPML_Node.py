@@ -38,7 +38,7 @@ class DPML_Node(BaseModel):
     def _node_comment(self):
         self.parser.get_comment()
         if self.parser.comment:
-            self.node = DPML_Type_Comment(self.parser)
+            self.node = DPML_Type_Empty(self.parser)
 
     def _node_import(self):
         m=re.match(r'^([a-zA-Z0-9_.-]*\s*){(.*)}', self.parser.ccode)

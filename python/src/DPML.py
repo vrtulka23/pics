@@ -7,6 +7,7 @@ from math import isclose
 from DPML_Node import *
 from DPML_Converter import *
 from DPML_Parser import *
+from DPML_Settings import *
 
 class DPML:
     lines: str
@@ -106,7 +107,7 @@ class DPML:
             # Add nodes to the list
             if node.keyword=='option':        # Set node option
                 self.nodestmp[-1].set_option(node)
-            elif node.keyword in ['empty','comment','group']:
+            elif node.keyword in ['empty','group']:
                 continue
             elif node.keyword=='condition':   # Parse conditions
                 casename = cname[-1]
@@ -272,10 +273,10 @@ class DPML:
         # list of comparison opperators
         comps = [
             # neglect python rounding errors using 'isclose' function
-            ('==', lambda a,b: isclose(a, b, rel_tol=1e-6)),  
+            ('==', lambda a,b: isclose(a, b, rel_tol=DPML_EQUAL_PRECISION)),  
             ('!=', lambda a,b: a!=b),
-            ('>=', lambda a,b: (a>b)|isclose(a, b, rel_tol=1e-6)),
-            ('<=', lambda a,b: (a<b)|isclose(a, b, rel_tol=1e-6)),
+            ('>=', lambda a,b: (a>b)|isclose(a, b, rel_tol=DPML_EQUAL_PRECISION)),
+            ('<=', lambda a,b: (a<b)|isclose(a, b, rel_tol=DPML_EQUAL_PRECISION)),
             ('>',  lambda a,b: a>b ),
             ('<',  lambda a,b: a<b ),
         ]

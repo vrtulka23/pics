@@ -4,7 +4,8 @@ from math import isclose
 
 from DPML_Unit import *
 from DPML_UnitList import *
-        
+from DPML_Settings import *
+
 class DPML_Converter:
 
     base: dict = {}
@@ -42,7 +43,7 @@ class DPML_Converter:
         pass
     
     def equal(self, unit1, unit2):
-        if not isclose(unit1.num, unit2.num, rel_tol=1e-6):
+        if not isclose(unit1.num, unit2.num, rel_tol=DPML_EQUAL_PRECISION):
             return False
         if unit1.base!=unit2.base:
             return False
