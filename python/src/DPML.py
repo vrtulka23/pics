@@ -223,9 +223,12 @@ class DPML:
         expr = expr.strip()
         if expr=='':
             return None
-        defined = False
+        flags = []
+        if expr[0]=='~':
+            flags.append('negate')
+            expr = expr[1:]
         if expr[0]=='!':
-            defined = True
+            flags.append('defined')
             expr = expr[1:]
         # parse node from the code
         kwargs = {'code': expr, 'line':0, 'source': 'expression'}
@@ -234,20 +237,28 @@ class DPML:
         if p.isimport:   # import existing node
             nodes = self.request(p.value)
             if len(nodes)==1:
-                if defined:
-                    return DPML_Type_Boolean(value_raw='true',**kwargs)
+                if 'defined' in flags:
+                    node = DPML_Type_Boolean(value_raw='true',value=True,**kwargs)
                 else:
-                    return nodes[0]
+                    node = nodes[0]
             elif len(nodes)==0:
-                if defined:
-                    return DPML_Type_Boolean(value_raw='false',**kwargs)
+                if 'defined' in flags:
+                    node = DPML_Type_Boolean(value_raw='false',value=False,**kwargs)
                 else:
-                    return None
+                    node = None
             else:
                 raise Exception(f"Path returned multiple nodes for a value import:", path)
         else:            # create anonymous node
             p.get_units()
-            return DPML_Type(p)
+            node = DPML_Type(p)
+            node.set_value()
+        if 'negate' in flags:
+            if node.keyword=='bool':
+                node.value = not node.value
+                node.value_raw = 'true' if node.value else 'false'
+            else:
+                raise Exception(f"Negated node is not boolean but:",node.keyword)
+        return node
     def _eval_comparison(self, expr):
         # return immediatelly if expression is a boolean
         if isinstance(expr,(bool,np.bool_)):
@@ -291,8 +302,13 @@ class DPML:
                 raise Exception("Invalid comparison:",expr)
         # evaluate single comparisons
         node = self._eval_node(expr)
-        if node.value_raw.strip()=='true':    return True
-        elif node.value_raw.strip()=='false': return False
+        node.set_value()
+        if node.keyword=='bool':
+            return node.value
+        elif node.value=='true':
+            return True
+        elif node.value=='false':
+            return False
         else:
             raise Exception("Single node expression needs to be a boolean:",expr)
     def expression(self, expr):

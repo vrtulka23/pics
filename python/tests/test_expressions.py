@@ -26,12 +26,13 @@ def test_parenthesis():
         assert p.expression('false || true && (false || false)') == False
         assert p.expression('false || ((false||true) || false) && (true||false)') == True
 
-def test_comparison():
+def test_compare_nodes():
     code = """
     dogs int = 23
     cats int = 44
     birds int = 23
     fish int = 12
+    animal bool = true
     """
     with DPML(code) as p:
         p.initialize()
@@ -50,10 +51,14 @@ def test_comparison():
         assert p.expression('{?dogs}<{?fish}') == False
         assert p.expression('{?dogs}>{?fish}') == True
         assert p.expression('{?dogs}>{?cats}') == False
-        # single node comparison
+        # single bool node
+        assert p.expression('{?animal}') == True
+        assert p.expression('~{?animal}') == False   # negated value
+        # is node defined
         assert p.expression('!{?dogs}') == True
         assert p.expression('!{?elefant}') == False
         assert p.expression('!{?elefant}==false') == True
+        assert p.expression('~!{?elefant}') == True  # negated value
         
 if __name__ == "__main__":
     # Specify wich test to run

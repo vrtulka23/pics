@@ -47,7 +47,7 @@ class DPML_Type(BaseModel):
     def cast_value(self, node=None):
         if node is None:
             node = self
-        value = self.value if self.value else self.value_raw
+        value = self.value if self.value is not None else self.value_raw
         if np.isscalar(value) and value in [None,'none','None']:
             # validate none values
             if node.defined:
@@ -70,7 +70,17 @@ class DPML_Type(BaseModel):
         else:
             # cast scalar values
             if value is not None:
-                value = node.dtype(value)
+                # casting string as boolean returns true always if string is non-empty
+                # that's why we need to convert it expicitely
+                if node and node.keyword=='bool':
+                    if value=='true':
+                        value = True
+                    elif value=='false':
+                        value = False
+                    elif not isinstance(value,(bool,np.bool_)):
+                        raise Exception("Could not convert raw value to boolean type:",value)
+                else:
+                    value = node.dtype(value)
         return value
 
     # Set value using value_raw or arbitrary value
