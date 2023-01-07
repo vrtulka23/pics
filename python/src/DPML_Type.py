@@ -73,9 +73,9 @@ class DPML_Type(BaseModel):
                 # casting string as boolean returns true always if string is non-empty
                 # that's why we need to convert it expicitely
                 if node and node.keyword=='bool':
-                    if value=='true':
+                    if value==DPML_KEYWORD_TRUE:
                         value = True
-                    elif value=='false':
+                    elif value==DPML_KEYWORD_FALSE:
                         value = False
                     elif not isinstance(value,(bool,np.bool_)):
                         raise Exception("Could not convert raw value to boolean type:",value)

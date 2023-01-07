@@ -12,6 +12,7 @@ from DPML_Settings import *
 class DPML:
     lines: str
     nodes: List = []
+    source: str = 'inline'
     
     def __init__(self, code=None, **kwargs):
         if code:
@@ -25,65 +26,6 @@ class DPML:
     def __exit__(self, type, value, traceback):
         pass
 
-    def open(self, file_name):
-        pass
-        
-    # Create nodes from code lines
-    def create_nodes(self, source='inline'):
-        for l,line in enumerate(self.lines):
-            self.nodes.append(DPML_Node(
-                code = line,
-                line = l+1,
-                source = source,
-            ))
-
-    # Group block lines
-    def group_block_values(self):
-        nodes = []
-        while len(self.nodes)>0:
-            node = self.nodes.pop(0)
-            if '"""' in node.code:
-                block = []
-                while len(self.nodes)>0:
-                    subnode = self.nodes.pop(0)
-                    if '"""' in subnode.code:
-                        node.code += "\n".join(block) + subnode.code.lstrip()
-                        break
-                    else:
-                        block.append( subnode.code )
-                if len(self.nodes)==0:
-                    raise Exception("Block structure starting on line %d is not properly terminated."%node.line)
-                nodes.append(node)
-            else:
-                nodes.append(node)
-        self.nodes = nodes
-        
-    # Replace specific symbols with substitution marks
-    def encode_symbols(self):
-        # Add replacement marks
-        # TODO: we need to also properly treate arrays like this ["d#", "b"]
-        replace = ["\\'", '\\"', "\n"]
-        for n,node in enumerate(self.nodes):
-            for i,symbol in enumerate(replace):
-                self.nodes[n].code = self.nodes[n].code.replace(symbol,f"$@{i:02d}")
-                
-    # Convert symbols to original letters
-    def _decode_symbols(self, value):
-        replace = ["\'", '\"', "\n"]
-        if isinstance(value, (list, np.ndarray)):
-            value = [self._decode_symbols(v) for v in value]
-        elif value is None:
-            return value
-        else:
-            for i,symbol in enumerate(replace):
-                value = value.replace(f"$@{i:02d}", symbol)
-        return value
-    def decode_symbols(self):
-        # Remove replacement marks
-        for n,node in enumerate(self.nodes):
-            self.nodes[n].value_raw = self._decode_symbols(node.value_raw)
-            self.nodes[n].code = self._decode_symbols(node.code)
-                    
     def parse_nodes(self):
         self.nodestmp = []
         cname, cnum = [''], [0]
@@ -150,18 +92,38 @@ class DPML:
 
     # Prepare raw nodes
     def initialize(self):
-        self.create_nodes()                  # determine nodes from lines
-        self.group_block_values()            # combine text blocks
-        self.encode_symbols()                # encode text symbols
-        for n,node in enumerate(self.nodes):
-            node = node.parse()              # process code
-            if node:
-                self.nodes[n] = node
-        self.decode_symbols()                # decode text symbols
+        # Convert code lines to nodes
+        for l,line in enumerate(self.lines):
+            self.nodes.append(DPML_Node(
+                code = line,
+                line = l+1,
+                source = self.source,
+            ))
+        # Parse nodes
+        nodes = []
+        while len(self.nodes)>0:
+            node = self.nodes.pop(0)
+            # Group block structures
+            if '"""' in node.code:
+                block = []
+                while len(self.nodes)>0:
+                    subnode = self.nodes.pop(0)
+                    if '"""' in subnode.code:
+                        node.code += "\n".join(block) + subnode.code.lstrip()
+                        break
+                    else:
+                        block.append( subnode.code )
+                if len(self.nodes)==0:
+                    raise Exception("Block structure starting on line %d is not properly terminated."%node.line)
+            # Determine specific node type
+            node = node.determine_type()
+            nodes.append(node)
+        self.nodes = nodes
         self.parse_nodes()                   # parse nodes during initialization
         
     # Read DPML code from a file
     def load(self, filepath):
+        self.source = filepath
         with open(filepath,'r') as f:
             self.lines += f.read().split('\n')
 
@@ -240,20 +202,20 @@ class DPML:
             nodes = self.request(p.value)
             if len(nodes)==1:
                 if 'defined' in flags:
-                    node = DPML_Type_Boolean(value_raw='true',value=True,**kwargs)
+                    node = DPML_Type_Boolean(value_raw=DPML_KEYWORD_TRUE,value=True,**kwargs)
                 else:
                     node = nodes[0]
             elif len(nodes)==0:
                 if 'defined' in flags:
-                    node = DPML_Type_Boolean(value_raw='false',value=False,**kwargs)
+                    node = DPML_Type_Boolean(value_raw=DPML_KEYWORD_FALSE,value=False,**kwargs)
                 else:
                     node = None
             else:
                 raise Exception(f"Path returned multiple nodes for a value import:", path)
-        elif p.value=='true':
-            node = DPML_Type_Boolean(value_raw='true',value=True,**kwargs)
-        elif p.value=='false':
-            node = DPML_Type_Boolean(value_raw='false',value=False,**kwargs)
+        elif p.value==DPML_KEYWORD_TRUE:
+            node = DPML_Type_Boolean(value_raw=DPML_KEYWORD_TRUE,value=True,**kwargs)
+        elif p.value==DPML_KEYWORD_FALSE:
+            node = DPML_Type_Boolean(value_raw=DPML_KEYWORD_FALSE,value=False,**kwargs)
         else:            # create anonymous node
             p.get_units()
             node = DPML_Type(p)
@@ -261,7 +223,7 @@ class DPML:
         if 'negate' in flags:
             if node.keyword=='bool':
                 node.value = not node.value
-                node.value_raw = 'true' if node.value else 'false'
+                node.value_raw = DPML_KEYWORD_TRUE if node.value else DPML_KEYWORD_FALSE
             else:
                 raise Exception(f"Negated node is not boolean but:", node.keyword)
         return node
