@@ -26,14 +26,41 @@ class DPML:
     def __exit__(self, type, value, traceback):
         pass
 
-    def parse_nodes(self):
-        self.nodestmp = []
+    # Prepare raw nodes
+    def initialize(self):
+        # Convert code lines to nodes
+        l = 0
+        nodes = []
         cname, cnum = [''], [0]
         indents, parents = [-1], []
+        while len(self.lines)>0:
+            l, line = l+1, self.lines.pop(0)
+            node = DPML_Node(
+                code = line,
+                line = l,
+                source = self.source,
+            )
+            # Group block structures
+            if '"""' in node.code:
+                block = []
+                while len(self.lines)>0:
+                    l, subline = l+1, self.lines.pop(0)
+                    if '"""' in subline:
+                        node.code += "\n".join(block) + subline.lstrip()
+                        break
+                    else:
+                        block.append( subline )
+                else:
+                    raise Exception("Block structure starting on line %d is not properly terminated."%node.line)
+            node = node.determine_type()
+            nodes.append(node)
+        self.nodes = nodes
+        # Parse nodes
+        nodes = []
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
             # Perform specific node parsing
-            parsed = node.parse(self.nodestmp)
+            parsed = node.parse(nodes)
             if parsed: 
                 # Add nodes to the queue and continue
                 self.nodes = parsed + self.nodes
@@ -45,23 +72,23 @@ class DPML:
                      parents.pop()
                  parents.append(node.name)
                  indents.append(node.indent)
-                 node.name = ".".join(parents)
+                 node.name = SGN_SEPARATOR.join(parents)
             # Add nodes to the list
             if node.keyword=='option':        # Set node option
-                self.nodestmp[-1].set_option(node)
+                nodes[-1].set_option(node)
             elif node.keyword in ['empty','group']:
                 continue
             elif node.keyword=='condition':   # Parse conditions
                 casename = cname[-1]
-                if node.name.endswith('@case'):
-                    if casename+'case'!=node.name:   # register new case
+                if node.name.endswith(SGN_CASE + KWD_CASE):
+                    if casename+KWD_CASE!=node.name:   # register new case
                         cname.append(node.name[:-4])
                         cnum.append(0)                                        
                     if node.value or cnum[-1]==1:
                         cnum[-1] += 1
-                elif node.name==casename+'else':
+                elif node.name==casename+KWD_ELSE:
                     cnum[-1] += 1
-                elif node.name==casename+'end':
+                elif node.name==casename+KWD_END:
                     cname.pop()
                     cnum.pop()
                 else:
@@ -74,52 +101,25 @@ class DPML:
                     if not node.name.startswith(cname[-1]): # ending case
                         cname.pop()
                         cnum.pop()
-                    node.name = node.name.replace('@case.','')
-                    node.name = node.name.replace('@else.','')
+                    node.name = node.name.replace(
+                        SGN_CASE + KWD_CASE + SGN_SEPARATOR,''
+                    )
+                    node.name = node.name.replace(
+                        SGN_CASE + KWD_ELSE + SGN_SEPARATOR,''
+                    )
                 # Set the node value
                 node.set_value()
                 # If node was previously defined, modify its value
-                for n in range(len(self.nodestmp)):
-                    if self.nodestmp[n].name==node.name:
-                        self.nodestmp[n].modify_value(node)
+                for n in range(len(nodes)):
+                    if nodes[n].name==node.name:
+                        nodes[n].modify_value(node)
                         break
                 # If node wasn't defined, create a new node
                 else:
                     if node.keyword=='mod':
                         raise Exception(f"Modifying undefined node:",node.name)
-                    self.nodestmp.append(node)
-        self.nodes = self.nodestmp
-
-    # Prepare raw nodes
-    def initialize(self):
-        # Convert code lines to nodes
-        for l,line in enumerate(self.lines):
-            self.nodes.append(DPML_Node(
-                code = line,
-                line = l+1,
-                source = self.source,
-            ))
-        # Parse nodes
-        nodes = []
-        while len(self.nodes)>0:
-            node = self.nodes.pop(0)
-            # Group block structures
-            if '"""' in node.code:
-                block = []
-                while len(self.nodes)>0:
-                    subnode = self.nodes.pop(0)
-                    if '"""' in subnode.code:
-                        node.code += "\n".join(block) + subnode.code.lstrip()
-                        break
-                    else:
-                        block.append( subnode.code )
-                if len(self.nodes)==0:
-                    raise Exception("Block structure starting on line %d is not properly terminated."%node.line)
-            # Determine specific node type
-            node = node.determine_type()
-            nodes.append(node)
+                    nodes.append(node)
         self.nodes = nodes
-        self.parse_nodes()                   # parse nodes during initialization
         
     # Read DPML code from a file
     def load(self, filepath):
@@ -134,9 +134,9 @@ class DPML:
     # Select local nodes according to a query
     def query(self, query):
         nodes = []
-        if query=='*':
+        if query==SGN_WILDCARD:
             return self.nodes
-        elif query[-2:]=='.*':
+        elif query[-2:]==SGN_SEPARATOR + SGN_WILDCARD:
             for node in self.nodes:
                 if node.name.startswith(query[:-1]):
                     node = node.copy()
@@ -146,16 +146,16 @@ class DPML:
             for node in self.nodes:
                 if node.name==query:
                     node = node.copy()
-                    node.name = node.name.split('.')[-1]
+                    node.name = node.name.split(SGN_SEPARATOR)[-1]
                     nodes.append(node)
         return nodes        
 
     # Request nodes from a path
     def request(self, path):
-        if '?' in path:
-            filename,query = path.split('?')
+        if SGN_QUERY in path:
+            filename,query = path.split(SGN_QUERY)
         else:
-            filename,query = path,'*'
+            filename,query = path,SGN_WILDCARD
         if filename:  # open external file and parse the values
             with DPML() as p:
                 p.load(filename)
@@ -168,7 +168,7 @@ class DPML:
 
     # Fill node with value from a path
     def fill(self, node, path):
-        if '?' in path:
+        if SGN_QUERY in path:
             nodes = self.request(path)
             if len(nodes)==1:
                 node.value_raw = nodes[0].value_raw
@@ -188,10 +188,10 @@ class DPML:
         if expr=='':
             return None
         flags = []
-        if expr[0]=='~':
+        if expr[0]==SGN_NEGATE:
             flags.append('negate')
             expr = expr[1:]
-        if expr[0]=='!':
+        if expr[0]==SGN_DEFINED:
             flags.append('defined')
             expr = expr[1:]
         # parse node from the code
@@ -202,20 +202,20 @@ class DPML:
             nodes = self.request(p.value)
             if len(nodes)==1:
                 if 'defined' in flags:
-                    node = DPML_Type_Boolean(value_raw=DPML_KEYWORD_TRUE,value=True,**kwargs)
+                    node = DPML_Type_Boolean(value_raw=KWD_TRUE,value=True,**kwargs)
                 else:
                     node = nodes[0]
             elif len(nodes)==0:
                 if 'defined' in flags:
-                    node = DPML_Type_Boolean(value_raw=DPML_KEYWORD_FALSE,value=False,**kwargs)
+                    node = DPML_Type_Boolean(value_raw=KWD_FALSE,value=False,**kwargs)
                 else:
                     node = None
             else:
                 raise Exception(f"Path returned multiple nodes for a value import:", path)
-        elif p.value==DPML_KEYWORD_TRUE:
-            node = DPML_Type_Boolean(value_raw=DPML_KEYWORD_TRUE,value=True,**kwargs)
-        elif p.value==DPML_KEYWORD_FALSE:
-            node = DPML_Type_Boolean(value_raw=DPML_KEYWORD_FALSE,value=False,**kwargs)
+        elif p.value==KWD_TRUE:
+            node = DPML_Type_Boolean(value_raw=KWD_TRUE,value=True,**kwargs)
+        elif p.value==KWD_FALSE:
+            node = DPML_Type_Boolean(value_raw=KWD_FALSE,value=False,**kwargs)
         else:            # create anonymous node
             p.get_units()
             node = DPML_Type(p)
@@ -223,7 +223,7 @@ class DPML:
         if 'negate' in flags:
             if node.keyword=='bool':
                 node.value = not node.value
-                node.value_raw = DPML_KEYWORD_TRUE if node.value else DPML_KEYWORD_FALSE
+                node.value_raw = KWD_TRUE if node.value else KWD_FALSE
             else:
                 raise Exception(f"Negated node is not boolean but:", node.keyword)
         return node
@@ -235,10 +235,10 @@ class DPML:
         # list of comparison opperators
         comps = [
             # neglect python rounding errors using 'isclose' function
-            ('==', lambda a,b: isclose(a, b, rel_tol=DPML_EQUAL_PRECISION)),  
+            ('==', lambda a,b: isclose(a, b, rel_tol=EQUAL_PRECISION)),  
             ('!=', lambda a,b: a!=b),
-            ('>=', lambda a,b: (a>b)|isclose(a, b, rel_tol=DPML_EQUAL_PRECISION)),
-            ('<=', lambda a,b: (a<b)|isclose(a, b, rel_tol=DPML_EQUAL_PRECISION)),
+            ('>=', lambda a,b: (a>b)|isclose(a, b, rel_tol=EQUAL_PRECISION)),
+            ('<=', lambda a,b: (a<b)|isclose(a, b, rel_tol=EQUAL_PRECISION)),
             ('>',  lambda a,b: a>b ),
             ('<',  lambda a,b: a<b ),
         ]

@@ -43,7 +43,7 @@ class DPML_Converter:
         pass
     
     def equal(self, unit1, unit2):
-        if not isclose(unit1.num, unit2.num, rel_tol=DPML_EQUAL_PRECISION):
+        if not isclose(unit1.num, unit2.num, rel_tol=EQUAL_PRECISION):
             return False
         if unit1.base!=unit2.base:
             return False

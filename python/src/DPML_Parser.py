@@ -39,7 +39,12 @@ class DPML_Parser(BaseModel):
             self._strip(m.group(1))
 
     def get_condition(self):
-        m=re.match(r'^(([a-zA-Z0-9_.-]*@case)\s+("""(.*)"""|([^#]*)))', self.ccode)
+        m=re.match(
+            r'^(([a-zA-Z0-9_.-]*'+
+            SGN_CASE+KWD_CASE+
+            r')\s+("""(.*)"""|([^#]*)))',
+            self.ccode
+        )
         if m:
             self.name = m.group(2)
             if m.group(4):
@@ -50,7 +55,12 @@ class DPML_Parser(BaseModel):
                 raise Exception("Invalid condition format on line: ", self.code)
             self._strip(m.group(1))
         else:
-            m=re.match(r'^([a-zA-Z0-9_.-]*@(else|end))', self.ccode)
+            m=re.match(
+                r'^([a-zA-Z0-9_.-]*('+
+                SGN_CASE+KWD_ELSE+'|'+
+                SGN_CASE+KWD_END+'))',
+                self.ccode
+            )
             if m:
                 self.name = m.group(1)
                 self._strip(m.group(1))
@@ -77,9 +87,9 @@ class DPML_Parser(BaseModel):
             raise Exception(f"Type not recognized: {self.code}")
         
     def get_defined(self):
-        if self.ccode[:1]=='!':
+        if self.ccode[:1]==SGN_DEFINED:
             self.defined = True
-            self._strip('!')
+            self._strip(SGN_DEFINED)
         
     def get_dimension(self):
         pattern = r'^(\[([0-9:]+)\])'
@@ -102,8 +112,8 @@ class DPML_Parser(BaseModel):
         if m:
             self.isimport = True 
             self.value = m.group(2)
-            if '?' in m.group(2):
-                filename,query = m.group(2).split('?')
+            if SGN_QUERY in m.group(2):
+                filename,query = m.group(2).split(SGN_QUERY)
                 self.source = filename
             else:
                 self.source = m.group(2)

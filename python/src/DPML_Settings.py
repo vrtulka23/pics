@@ -1,3 +1,12 @@
-DPML_EQUAL_PRECISION=1e-6
-DPML_KEYWORD_TRUE='true'
-DPML_KEYWORD_FALSE='false'
+EQUAL_PRECISION = 1e-6
+KWD_TRUE        = 'true'
+KWD_FALSE       = 'false'
+KWD_CASE        = 'case'
+KWD_ELSE        = 'else'
+KWD_END         = 'end'
+SGN_QUERY       = '?'
+SGN_WILDCARD    = '*'
+SGN_NEGATE      = '~'
+SGN_DEFINED     = '!'
+SGN_CASE        = '@'
+SGN_SEPARATOR   = '.'

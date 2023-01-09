@@ -5,6 +5,7 @@ import json
 import csv
 
 from DPML_Parser import *
+from DPML_Settings import *
 import DPML
 
 class DPML_Type(BaseModel):
@@ -73,9 +74,9 @@ class DPML_Type(BaseModel):
                 # casting string as boolean returns true always if string is non-empty
                 # that's why we need to convert it expicitely
                 if node and node.keyword=='bool':
-                    if value==DPML_KEYWORD_TRUE:
+                    if value==KWD_TRUE:
                         value = True
-                    elif value==DPML_KEYWORD_FALSE:
+                    elif value==KWD_FALSE:
                         value = False
                     elif not isinstance(value,(bool,np.bool_)):
                         raise Exception("Could not convert raw value to boolean type:",value)
@@ -210,12 +211,12 @@ class DPML_Type_Import(DPML_Type):
         with DPML.DPML() as p:
             p.use(nodes)
             for node in p.request(self.value_raw):
-                path = self.name.split('.{')
+                path = self.name.split(SGN_SEPARATOR + '{')
                 path.pop()
                 path.append(node.name)                
                 node.source = self.source
                 node.line = self.line
-                node.name = ".".join(path)
+                node.name = SGN_SEPARATOR.join(path)
                 node.indent = self.indent
                 nodes_new.append(node)
         return nodes_new
@@ -276,7 +277,7 @@ class DPML_Type_Table(DPML_Type):
         for node in table:
             nvalues = len(node.value)
             node.dimension = [(nvalues,nvalues)]
-            node.name = self.name+'.'+node.name
+            node.name = self.name + SGN_SEPARATOR + node.name
             node.indent = self.indent
             nodes_new.append(node)
         return nodes_new
