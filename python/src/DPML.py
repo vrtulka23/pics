@@ -5,13 +5,13 @@ from typing import List
 from math import isclose
 
 from DPML_Node import *
-from DPML_Converter import *
 from DPML_Parser import *
 from DPML_Settings import *
 
 class DPML:
     lines: str
     nodes: List = []
+    units: List = []
     source: str = 'inline'
     
     def __init__(self, code=None, **kwargs):
@@ -56,13 +56,13 @@ class DPML:
             nodes.append(node)
         self.nodes = nodes
         # Parse nodes
-        nodes = []
+        nodes, units = [], []
         while len(self.nodes)>0:
             node = self.nodes.pop(0)
             # Perform specific node parsing
-            parsed = node.parse(nodes)
+            parsed = node.parse(nodes, units)
             if parsed: 
-                # Add nodes to the queue and continue
+                # Add parsed nodes to the queue and continue
                 self.nodes = parsed + self.nodes
                 continue
             # Create hierarchical name
@@ -75,8 +75,8 @@ class DPML:
                  node.name = SGN_SEPARATOR.join(parents)
             # Add nodes to the list
             if node.keyword=='option':        # Set node option
-                nodes[-1].set_option(node)
-            elif node.keyword in ['empty','group']:
+                nodes[-1].set_option(node, units)
+            elif node.keyword in ['empty','group','unit']:
                 continue
             elif node.keyword=='condition':   # Parse conditions
                 casename = cname[-1]
@@ -86,9 +86,9 @@ class DPML:
                         cnum.append(0)                                        
                     if node.value or cnum[-1]==1:
                         cnum[-1] += 1
-                elif node.name==casename+KWD_ELSE:
+                elif node.name==casename + KWD_ELSE:
                     cnum[-1] += 1
-                elif node.name==casename+KWD_END:
+                elif node.name==casename + KWD_END:
                     cname.pop()
                     cnum.pop()
                 else:
@@ -112,7 +112,7 @@ class DPML:
                 # If node was previously defined, modify its value
                 for n in range(len(nodes)):
                     if nodes[n].name==node.name:
-                        nodes[n].modify_value(node)
+                        nodes[n].modify_value(node, units)
                         break
                 # If node wasn't defined, create a new node
                 else:
@@ -120,6 +120,7 @@ class DPML:
                         raise Exception(f"Modifying undefined node:",node.name)
                     nodes.append(node)
         self.nodes = nodes
+        self.units = units
         
     # Read DPML code from a file
     def load(self, filepath):
@@ -127,10 +128,11 @@ class DPML:
         with open(filepath,'r') as f:
             self.lines += f.read().split('\n')
 
-    # Use specific nodes
-    def use(self, nodes):
+    # Use specific nodes and units
+    def use(self, nodes, units):
         self.nodes = nodes
-
+        self.units = units
+        
     # Select local nodes according to a query
     def query(self, query):
         nodes = []
@@ -151,7 +153,7 @@ class DPML:
         return nodes        
 
     # Request nodes from a path
-    def request(self, path):
+    def request(self, path, count=None):
         if SGN_QUERY in path:
             filename,query = path.split(SGN_QUERY)
         else:
@@ -160,24 +162,25 @@ class DPML:
             with DPML() as p:
                 p.load(filename)
                 p.initialize()
-            return p.query(query)
+            nodes = p.query(query)
         else:         # use values parsed in the current file
             if not self.nodes:
                 raise Exception(f"Local nodes are not available for DPML import:", path)
-            return self.query(query)
+            nodes = self.query(query)
+        if count:
+            if isinstance(count, list) and len(nodes) not in count:
+                raise Exception(f"Path returned invalid number of nodes:", path, count, len(nodes))
+            elif np.isscalar(count) and len(nodes)!=count:
+                raise Exception(f"Path returned invalid number of nodes:", path, count, len(nodes))
+        return nodes
 
     # Fill node with value from a path
     def fill(self, node, path):
         if SGN_QUERY in path:
-            nodes = self.request(path)
-            if len(nodes)==1:
-                node.value_raw = nodes[0].value_raw
-                if not node.units:
-                    node.units = nodes[0].units
-            elif len(nodes)==0:
-                raise Exception(f"Node was not found:", path)
-            else:
-                raise Exception(f"Path returned multiple nodes for a value import:", path)
+            nodes = self.request(path, count=1)
+            node.value_raw = nodes[0].value_raw
+            if not node.units:
+                node.units = nodes[0].units
         else:
             with open(path,'r') as f:
                 node.value_raw = f.read()
@@ -199,7 +202,7 @@ class DPML:
         p = DPML_Parser(keyword='node',**kwargs)
         p.get_value(equal_sign=False)
         if p.isimport:   # import existing node
-            nodes = self.request(p.value)
+            nodes = self.request(p.value, count=[0,1])
             if len(nodes)==1:
                 if 'defined' in flags:
                     node = DPML_Type_Boolean(value_raw=KWD_TRUE,value=True,**kwargs)
@@ -210,8 +213,6 @@ class DPML:
                     node = DPML_Type_Boolean(value_raw=KWD_FALSE,value=False,**kwargs)
                 else:
                     node = None
-            else:
-                raise Exception(f"Path returned multiple nodes for a value import:", path)
         elif p.value==KWD_TRUE:
             node = DPML_Type_Boolean(value_raw=KWD_TRUE,value=True,**kwargs)
         elif p.value==KWD_FALSE:
@@ -254,18 +255,18 @@ class DPML:
             # perform comparison
             if left.keyword=='node':            # if left node datatype is unknown
                 left.set_value(left.cast_value(right))
-                left.convert_units(right)
+                left.convert_units(right, self.units)
                 right.set_value()
                 return fn(left.value, right.value)
             elif right.keyword=='node':         # if right node datatype is unknown
                 left.set_value()
                 right.set_value(right.cast_value(left))
-                right.convert_units(left)
+                right.convert_units(left, self.units)
                 return fn(left.value, right.value)
             elif left.keyword==right.keyword:   # if both datatypes are known
                 left.set_value()
                 right.set_value()
-                right.convert_units(left)
+                right.convert_units(left, self.units)
                 return fn(left.value, right.value)                
             else:                               # throw error if both datatypes are unknown
                 raise Exception("Invalid comparison:", expr)
@@ -336,3 +337,39 @@ class DPML:
         for node in self.nodes:
             data[node.name] = node.value
         return data
+
+    # Use node values to parse a template
+    def template(self, template, output=None):
+        if os.path.isfile(template): 
+            with open(template,'r') as f:
+                tpl = f.read()
+        else:
+            tpl = template
+        out = ''
+        kwargs = {'line':0, 'source': 'template', 'keyword':'tpl'}
+        while len(tpl)>0:
+            sign, tpl = tpl[0], tpl[1:]
+            if sign=='{':
+                p = DPML_Parser(code=tpl, **kwargs)
+                p.get_import()
+                p.get_format()
+                if p.value and p.ccode[0]=='}':
+                    nodes = self.request(p.value, count=1)
+                    if p.formating:
+                        form = "{0"+p.formating+"}"
+                        out += form.format(nodes[0].value)
+                    else:
+                        out += str(nodes[0].value)
+                    tpl = p.ccode[1:]
+                else:
+                    out += sign
+            else:
+                out += sign
+        if output:
+            with open(template,'r+') as f:
+                f.write(out)
+        return out
+            
+                
+        
+        

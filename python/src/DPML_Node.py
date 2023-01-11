@@ -5,6 +5,7 @@ import re
 
 from DPML_Type import *
 from DPML_Parser import *
+from DPML_Settings import *
 
 class DPML_Node(BaseModel):
     code: str               
@@ -50,7 +51,18 @@ class DPML_Node(BaseModel):
             self.parser.get_import()
             self.parser.get_comment()
             self.node = DPML_Type_Import(self.parser)
-   
+
+    def _node_unit(self):
+        m=re.match(
+            r'^[a-zA-Z0-9_.-]*'+
+            re.escape(SGN_UNIT)+KWD_UNIT, 
+            self.parser.ccode
+        )
+        if m:
+            self.parser.get_unit()
+            self.parser.get_comment()
+            self.node = DPML_Type_Unit(self.parser)
+
     def _node_option(self):
         m=re.match(r'^=\s*', self.parser.ccode)
         if m:           
@@ -60,7 +72,11 @@ class DPML_Node(BaseModel):
             self.node = DPML_Type_Option(self.parser)
 
     def _node_condition(self):
-        m=re.match(r'^[a-zA-Z0-9_.-]*@(case|else|end)', self.parser.ccode)
+        m=re.match(
+            r'^[a-zA-Z0-9_.-]*'+
+            SGN_CASE+'('+KWD_CASE+'|'+KWD_ELSE+'|'+KWD_END+')',
+            self.parser.ccode
+        )
         if m:
             self.parser.get_condition()
             self.parser.get_comment()
@@ -109,6 +125,7 @@ class DPML_Node(BaseModel):
             self._node_empty,         # parse empty line node
             self.parser.get_indent,   # parse line indent
             self._node_import,        # parse import node
+            self._node_unit,          # parse unit node
             self._node_comment,       # parse comment node
             self._node_option,        # parse option node
             self._node_condition,     # parse condition node

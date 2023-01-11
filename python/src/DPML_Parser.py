@@ -2,7 +2,7 @@ from typing import List
 from pydantic import BaseModel
 import re
 
-from DPML_Converter import *
+from DPML_Settings import *
 
 class DPML_Parser(BaseModel):
     code: str 
@@ -21,6 +21,7 @@ class DPML_Parser(BaseModel):
     comment: str = None
     dimension: List[tuple] = None
     options: List[BaseModel] = None
+    formating: str = None
 
     def __init__(self, **kwargs):
         kwargs['ccode'] = kwargs['code']
@@ -64,9 +65,24 @@ class DPML_Parser(BaseModel):
             if m:
                 self.name = m.group(1)
                 self._strip(m.group(1))
-            
-    def get_name(self):
-        m=re.match(r'^([a-zA-Z0-9_.-]+)', self.ccode)
+
+    def get_unit(self):
+        m=re.match(
+            r'^(([a-zA-Z0-9_.-]*'+
+            re.escape(SGN_UNIT)+KWD_UNIT+
+            r')\s+([^#]*))',
+            self.ccode
+        )
+        if m:
+            self.name = m.group(2)
+            self.value = m.group(3)
+            self._strip(m.group(1))
+                
+    def get_name(self, path=True):
+        if path is True:
+            m=re.match(r'^([a-zA-Z0-9_.-]+)', self.ccode)  # format of node names
+        else:
+            m=re.match(r'^([a-zA-Z0-9_]+)', self.ccode)    # format of unit names
         if m:
             self.name = m.group(1)
             self._strip(m.group(1))
@@ -108,7 +124,7 @@ class DPML_Parser(BaseModel):
             m=re.match(pattern, self.ccode)
 
     def get_import(self):
-        m=re.match(r'^({(.*)})', self.ccode)
+        m=re.match(r'^({([^}]*)})', self.ccode)
         if m:
             self.isimport = True 
             self.value = m.group(2)
@@ -124,6 +140,12 @@ class DPML_Parser(BaseModel):
                     self.name = f"{m.group(1)}"
             self._strip(m.group(1))
 
+    def get_format(self):
+        m=re.match(r'^(:[0-9.]*[sdfeb]+)', self.ccode)
+        if m:
+            self.formating = m.group(1)
+            self._strip(m.group(1))
+            
     def get_value(self, equal_sign=True):
         # Remove equal sign
         if equal_sign:
@@ -151,8 +173,6 @@ class DPML_Parser(BaseModel):
         m=re.match(r'^(\s+([^\s#=]+))', self.ccode)
         if m:
             self.units = m.group(2)
-            with DPML_Converter() as p:
-                p.expression(self.units)
             self._strip(m.group(1))
         
     def get_comment(self):

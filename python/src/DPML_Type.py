@@ -6,6 +6,7 @@ import csv
 
 from DPML_Parser import *
 from DPML_Settings import *
+from DPML_Converter import *
 import DPML
 
 class DPML_Type(BaseModel):
@@ -41,7 +42,7 @@ class DPML_Type(BaseModel):
                 kwargs['keyword'] = parser.keyword
         super().__init__(**kwargs)
 
-    def parse(self, nodes):
+    def parse(self, nodes, units):
         return False
 
     # Cast (raw-)value as a datatype self, or another node
@@ -97,28 +98,28 @@ class DPML_Type(BaseModel):
                 raise Exception(f"Value '{self.value}' of node '{self.name}' doesn't match with any option:", self.options)
         return True
 
-        # Convert unit to units of another node
-    def convert_units(self, node):
+    # Convert unit to units of another node
+    def convert_units(self, node, units):
         if self.units and node.units and self.units!=node.units:
-            with DPML_Converter() as p:
+            with DPML_Converter(units) as p:
                 self.value = p.convert(self.value, self.units, node.units)
                 self.units = node.units        
 
     # Modify value taking value of a different node
-    def modify_value(self, node):
+    def modify_value(self, node, units):
         if node.keyword!='mod' and node.dtype!=self.dtype:
             raise Exception(f"Datatype {self.dtype} of node '{self.name}' cannot be changed to {node.dtype}")
         node.set_value(node.cast_value(self))
-        node.convert_units(self)
+        node.convert_units(self, units)
         self.set_value(node.value)
 
     # Set option using value of a different node
-    def set_option(self, node):
+    def set_option(self, node, units):
         if self.options is not None:
             if not self.defined and None not in self.options:
                 self.options.append( None )
             node.set_value(node.cast_value(self))
-            node.convert_units(self)
+            node.convert_units(self, units)
             self.options.append(node.value)
         else:
             raise Exception(f"Node '{self.keyword}' does not support options")
@@ -135,10 +136,10 @@ class DPML_Type_Option(DPML_Type):
 class DPML_Type_Mod(DPML_Type):
     keyword: str = 'mod'
 
-    def parse(self, nodes):
+    def parse(self, nodes, units):
         if self.isimport:
             with DPML.DPML() as p:
-                p.use(nodes)
+                p.use(nodes, units)
                 p.fill(self, self.value_raw)
         return None    
 
@@ -147,10 +148,10 @@ class DPML_Type_Boolean(DPML_Type):
     value: bool = None
     dtype = bool
 
-    def parse(self, nodes):
+    def parse(self, nodes, units):
         if self.isimport:
             with DPML.DPML() as p:
-                p.use(nodes)
+                p.use(nodes, units)
                 p.fill(self, self.value_raw)
         return None    
     
@@ -160,10 +161,10 @@ class DPML_Type_Integer(DPML_Type):
     options: List[BaseModel] = []
     dtype = int
 
-    def parse(self, nodes):
+    def parse(self, nodes, units):
         if self.isimport:
             with DPML.DPML() as p:
-                p.use(nodes)
+                p.use(nodes, units)
                 p.fill(self, self.value_raw)
         return None    
     
@@ -173,10 +174,10 @@ class DPML_Type_Float(DPML_Type):
     options: List[BaseModel] = []
     dtype = float
 
-    def parse(self, nodes):
+    def parse(self, nodes, units):
         if self.isimport:
             with DPML.DPML() as p:
-                p.use(nodes)
+                p.use(nodes, units)
                 p.fill(self, self.value_raw)
         return None    
     
@@ -184,32 +185,53 @@ class DPML_Type_String(DPML_Type):
     keyword: str = 'str'
     options: List[BaseModel] = []
 
-    def parse(self, nodes):
+    def parse(self, nodes, units):
         if self.isimport:
             with DPML.DPML() as p:
-                p.use(nodes)
+                p.use(nodes, units)
                 p.fill(self, self.value_raw)
         return None    
 
 class DPML_Type_Condition(DPML_Type):
     keyword: str = 'condition'
 
-    def parse(self, nodes):
+    def parse(self, nodes, units):
         # Solve condition
-        if self.name.endswith('@case'):
+        if self.name.endswith(SGN_CASE + KWD_CASE):
             with DPML.DPML() as p:
-                p.use(nodes)
+                p.use(nodes, units)
                 self.value = p.expression(self.value_raw)
+        return None
+
+class DPML_Type_Unit(DPML_Type):
+    keyword: str = 'unit'
+
+    def parse(self, nodes, units):
+        parser = DPML_Parser(
+            code=self.value_raw,
+            line=self.line,
+            source=self.source
+        )
+        parser.get_name(path=False) # parse name
+        parser.get_value()          # parse value
+        parser.get_units()          # parse unit
+        with DPML_Converter(units) as conv:
+            unit = conv.multiply(
+                conv.expression(parser.units),
+                conv.unit(parser.value)
+            )
+            unit.symbol = '['+parser.name+']'
+            units.append(unit)
         return None
     
 class DPML_Type_Import(DPML_Type):
     keyword: str = 'import'
 
-    def parse(self, nodes):
+    def parse(self, nodes, units):
         # Parse import code
         nodes_new = []
         with DPML.DPML() as p:
-            p.use(nodes)
+            p.use(nodes, units)
             for node in p.request(self.value_raw):
                 path = self.name.split(SGN_SEPARATOR + '{')
                 path.pop()
@@ -224,10 +246,10 @@ class DPML_Type_Import(DPML_Type):
 class DPML_Type_Table(DPML_Type):
     keyword: str = 'table'
     
-    def parse(self, nodes):
+    def parse(self, nodes, units):
         if self.isimport:
             with DPML.DPML() as p:
-                p.use(nodes)
+                p.use(nodes, units)
                 p.fill(self,self.value_raw)
         lines = self.value_raw.split("\n")
         # Parse nodes from table header

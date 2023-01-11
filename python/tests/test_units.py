@@ -4,6 +4,30 @@ import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(sys.path[0]),'src'))
 from DPML_Converter import *
+from DPML import *
+
+def parse(code):
+    with DPML(code) as p:
+        p.initialize()
+        p.display()
+        return p.data()
+
+def test_declaration():
+    data = parse("""
+    $unit lenght = 1 cm
+    $unit time = 1 s
+    $unit mass = 1 g
+
+    energy float = 12 [mass]*[length]2/[time]2
+    """)
+    np.testing.assert_equal(data,{
+        'energy': 12,
+    })
+    with pytest.raises(Exception) as e_info:
+        parse("""
+        $unit e = 1 cm
+        """)
+    assert e_info.value.args[0] == "Following unit already exits:"
 
 def test_base():
     with DPML_Converter() as p:

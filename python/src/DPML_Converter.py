@@ -12,9 +12,10 @@ class DPML_Converter:
     prefixes: dict = {}
     derivates: dict = {}
     arbitrary: dict = {}
+    custom: dict = {}
     units: dict = {}
     
-    def __init__(self):
+    def __init__(self, units=None):
         self.nbase = len(DPML_UnitList_Base)
         self.npbase = self.nbase-1
         # Load unit lists into dictionaries
@@ -35,6 +36,13 @@ class DPML_Converter:
                 1.0, unit[0], symbol=unit[1], name=unit[2], arbitrary=True
             )
         self.units = self.base | self.derivates | self.arbitrary
+        if units:
+            for unit in units:
+                print(unit.symbol)
+                if unit.symbol in self.units:
+                    raise Exception('Following unit already exits:', unit.symbol)
+                self.custom[unit.symbol] = unit
+            self.units = self.units | self.custom
 
     def __enter__(self):
         return self
@@ -71,7 +79,7 @@ class DPML_Converter:
         base = [unit.base[i]*power for i in range(self.nbase)]
         return self._rebase(DPML_Unit(num, base))
 
-    def unit(self, string):
+    def unit(self, string=None):
         # parse number
         m = re.match('^([0-9.]+)(e([0-9+-]+)|)$', string)
         if m:
@@ -118,49 +126,49 @@ class DPML_Converter:
         #print("%-06s"%string_bak, "%-03s"%prefix, "%-03s"%base, "%03s"%exp, unit)
         return unit
 
-    def expression(self, part2, expr_bak=None):
+    def expression(self, right, expr_bak=None):
         if not expr_bak:
-            expr_bak = part2
-        if part2.count('(')!=part2.count(')'):
+            expr_bak = right
+        if right.count('(')!=right.count(')'):
             raise Exception(f"Unmatched parentheses in: {expr_bak}")
-        part1 = ''
-        symbol, part2 = part2[0], part2[1:]
+        left = ''
+        symbol, right = right[0], right[1:]
         parentheses = 0
-        while part2:
+        while right:
             if symbol=='*':
                 return self.multiply(
-                    self.expression(part1, expr_bak),
-                    self.expression(part2, expr_bak)
+                    self.expression(left, expr_bak),
+                    self.expression(right, expr_bak)
                 )
             elif symbol=='/':
-                if '/' in part2:
+                if '/' in right:
                     # If there are multiple divisions
                     # we need to start from the last
-                    parts = part2.split('/')
-                    part2 = parts.pop()
-                    parts.insert(0,part1)
-                    part1 = '/'.join(parts)
+                    parts = right.split('/')
+                    right = parts.pop()
+                    parts.insert(0,left)
+                    left = '/'.join(parts)
                 return self.divide(
-                    self.expression(part1, expr_bak),
-                    self.expression(part2, expr_bak)
+                    self.expression(left, expr_bak),
+                    self.expression(right, expr_bak)
                 )
             elif symbol=='(':
                 parentheses = 1
-                symbol, part2 = part2[0], part2[1:]
+                symbol, right = right[0], right[1:]
                 while parentheses>0:
                     if symbol=='(':
                         parentheses+=1
                     elif symbol==')':
                         parentheses-=1
                     else:
-                        part1 = part1 + symbol
-                    if not part2:
-                        return self.expression(part1)
-                    symbol, part2 = part2[0], part2[1:]
+                        left = left + symbol
+                    if not right:
+                        return self.expression(left)
+                    symbol, right = right[0], right[1:]
             else:
-                part1 = part1 + symbol
-                symbol, part2 = part2[0], part2[1:]
-        unit = self.unit(part1+symbol)
+                left = left + symbol
+                symbol, right = right[0], right[1:]
+        unit = self.unit(left+symbol)
         unit.symbol = expr_bak
         return unit
         

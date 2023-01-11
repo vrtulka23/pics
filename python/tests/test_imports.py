@@ -93,7 +93,7 @@ energy = {tests/blocks/query.dpml?energy}        # import both value and unit
     })
     with pytest.raises(Exception) as e_info:
         parse('energy float = {tests/blocks/query.dpml?*}')
-    assert e_info.value.args[0] == "Path returned multiple nodes for a value import:"
+    assert e_info.value.args[0] == "Path returned invalid number of nodes:"
     assert e_info.value.args[1] == "tests/blocks/query.dpml?*"
     
 def test_import_matrix():
